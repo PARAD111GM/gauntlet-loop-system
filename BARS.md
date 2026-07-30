@@ -6,8 +6,8 @@ block names. Every contract this file touches lives in `CONTRACTS.md` and is ref
 
 ## Rules of the bar
 
-1. **One bar per comparison.** Where a default names two artifacts (3D, product UI, CLI) each owns a *different axis* and is judged on
-   that axis alone. Averaging two bars into one call is what kills the pressure. Never merge them.
+1. **One bar per comparison.** Where a default names two artifacts (3D, product UI, data, CLI) each owns a *different axis* and is
+   judged on that axis alone. Averaging two bars into one call is what kills the pressure. Never merge them.
 2. **A bar is an artifact someone can open** — not a standard, rubric, or adjective. Either a fresh critic can fetch, screenshot,
    download or record it inside the run, *or* the **operator** captures it once at round 0 and `ACCESS` names who captured it, on
    what, and when. Mobile and voice are operator-captured by nature; nothing vaguer than that is a bar.
@@ -227,7 +227,8 @@ confident emptiness that rubrics love.
 months has passed a harder test than any award jury. Alt: Ogilvy's Rolls-Royce "At 60 miles an hour" for the specific detail, Apple's
 "Get a Mac" for positioning in 30 seconds.
 **ACQUIRE** — Search the Ad Library for the category; pull the ads with the longest continuous run. Save creative, primary text and
-hook; screenshot at feed dimensions.
+hook; screenshot at feed dimensions. Video ads: `ffmpeg` the first three seconds to a frame tile and `Read` it (`INSPECTION.md`
+recipe 4) — the audio track is not judged here, and C5 is why.
 **BLIND** — Render both at the same placement size with the same neutral mark, same category noun, same offer. Judge **hook only**
 first (first three seconds, or first line), then the full creative. A losing hook cannot be rescued downstream.
 **SIGNALS**
@@ -285,7 +286,7 @@ calls, and the recording already exists in the call log. Alt: the **Google Duple
 a competitor's live line — dialling a third party is not an agent's decision to make, and a frozen probe re-dials it every round
 (C5.5).
 **ACQUIRE** — Operator, once, at round 0: pull top-outcome recordings plus transcripts from the call platform, and record the
-candidate side against a **test destination** into `$RUN/bar/` and `$RUN/probes/fixtures/`. In-loop the probe is
+candidate side against a **test destination** into `$RUN/bar/` and `$RUN/probes/fixtures/` (C3). In-loop the probe is
 `flowforge_run_test` then `flowforge_get_call`, or a fixture replay. `flowforge_start_call` to a real destination is forbidden
 inside the loop.
 **BLIND** — Normalise both with `ffmpeg -af loudnorm=I=-16:TP=-1.5`, same codec, same 60–90s window over the same call stage, brand
@@ -299,8 +300,7 @@ such a verdict carries, what it can never establish, and the operator gate it mu
 - Numbers, dates and spellings confirmed back in the caller's own format.
 - Escalation, voicemail and silence-timeout paths, and the CRM/webhook side effect actually fired.
 - Loudness, clipping and dead air from `ebur128`, `astats`, `silencedetect` — budget checks.
-- Timbre, prosody, mispronounced proper nouns, artefacts — **operator gate**. This is where callers actually judge a voice agent,
-  and no agent here can reach it.
+- Timbre, prosody, mispronounced proper nouns, artefacts — **operator gate** (C5.4). Where callers actually judge a voice agent.
 **ANTI-BAR** — grading against the **script document**: circular, since the script is what the builder was handed. Grading the
 transcript is *not* the anti-bar — it is the only comparison the harness can run, and its evidential limit is stated above rather
 than hidden.
@@ -373,8 +373,8 @@ endpoints. Scanners find categories; bars find bugs.
 **BAR** — Default **the baseline Gauntlet prompt**, at the installed path C3.8 names — never the build-time `reference/` copy, which
 does not survive installation. It is the shortest working thing in the category, so comparing against it punishes this domain's
 signature failure, length as evidence of effort. Alt, and the two escalation targets, both verified present:
-`~/.claude/skills/verification-loop/SKILL.md` and
-`~/.claude/skills/eval-harness/SKILL.md`. Also **Anthropic's "Building effective agents"** post.
+`~/.claude/skills/verification-loop/SKILL.md` and `~/.claude/skills/eval-harness/SKILL.md`. Also **Anthropic's "Building effective
+agents"** post.
 **ACQUIRE** — Read the local files directly; WebFetch the published post. Then run both systems on one goal and compare *outputs*,
 not documents.
 **BLIND** — Two levels, output-level breaking ties (C5.6). (1) Prompt-level: both stripped of names, same formatting, word counts
@@ -394,7 +394,7 @@ baseline does **not** put this bar below the ceiling, and C5.6 is the ruling: th
 runs, the default above stands, the escalation targets wait, and no line in this file claims the baseline has been beaten.
 **ANTI-BAR** — awesome-prompts repos and "ultimate prompt engineering guide" documents. The defect is volume in the **emission**,
 not depth in a reference file an agent may consult after it has seen the artifact; imitate the former and you ship the 40-page
-framework that loses to 120 words.
+framework that loses to the baseline.
 
 ---
 
@@ -435,9 +435,9 @@ loss, and void the comparison history the harness computes across rounds.
 palette. API → partial failure and replay → GraphQL parity. Game → 40-active frame budget → Doom's encounter pacing.
 
 **Never lower the bar** — not to end the run sooner, not because rounds are expensive, not because the critic seems stuck. Lowering
-it retroactively invalidates every prior round and is the most common route to confident mediocrity. If budget is gone, report the
-last honest comparison: a truthful loss is usable, a manufactured win is not. Two exceptions, each needing an explicit human
-decision in the log — the bar was mis-specified, or the goal changed.
+it retroactively invalidates every prior round and is the most common route to confident mediocrity. Budget exhaustion is an **abort**
+under C2, not a reason to soften the bar: report the last honest comparison, because a truthful loss is usable and a manufactured win
+is not. Two exceptions, each needing an explicit human decision in the log — the bar was mis-specified, or the goal changed.
 
 ## OVERFITTING WARNING — mimicry vs quality
 

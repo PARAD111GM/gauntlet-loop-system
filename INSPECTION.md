@@ -1,7 +1,7 @@
 # INSPECTION — how a critic actually verifies
 
-Turn "compare it to the bar" into probes that run, on both sides, at the same fidelity. `DOCTRINE.md` says why; this is the how.
-Bar acquisition and per-domain neutralisation: `BARS.md`.
+Turn "compare it to the bar" into probes that run, on both sides, at the same fidelity. `DOCTRINE.md` says why; this is the how. Bar
+acquisition and per-domain neutralisation: `BARS.md`.
 
 **Scope, and the law over it.** `CONTRACTS.md` is normative for every schema field, stop threshold, run path, ceiling and capability
 claim. Nothing here restates one, and where this file and that one disagree, **this file is the bug.** What this file owns is the probe
@@ -11,9 +11,9 @@ with C5.1 (`LAUNCH.md` STEP 2b is the router) and **halt if no row matches** rat
 
 ## The rule
 
-The founding incident is `DOCTRINE.md` invariant 4: the visual-only loop that scored itself 27 → 38 → 43 while a divergent integrator
-and a silently failing Pointer Lock survived every round. A still frame carries no frame time, no input, no state transition, no elapsed
-time — that defect class was not *representable* in the evidence type. What this file adds is the mechanism.
+The founding incident is `DOCTRINE.md` invariant 4: the visual-only loop that scored itself 27 → 38 → 43 while a divergent integrator and
+a silently failing Pointer Lock survived every round. A still frame carries no frame time, no input, no state transition, no elapsed time
+— that defect class was not *representable* in the evidence type. What this file adds is the mechanism.
 
 **THE RULE.** A verdict is valid only for the qualities its probe can observe. Declare the modality before the verdict; anything
 unprobed goes in `not_probed`, never into the choice. Corollaries: capturing a screenshot is not seeing it, so the critic must `Read`
@@ -49,9 +49,8 @@ rigged-and-looks-rigorous. Three moves; each recipe's **PARITY** line says which
 `pw.evaluate` takes `function: "() => …"`. `pw.take_screenshot` takes `target: <ref>` for a component crop and `scale: "device"` for
 native DPR. `pane.computer` takes `action: "zoom", region: [x,y,w,h]`. **Media and measurement binaries: C5.2 is the list, and no
 recipe here uses one it does not name.** Also usable, none of them media tools: `mcp__codex-cli__review` (cross-model; pass an explicit
-model, the default fails here), `mcp__neon__run_sql`, `mcp__Blender__render_viewport_to_path`. **Route on the claim, never the file
-type**: a static PNG of a game goes to recipe 3 because the claim is "runs smooth", and "built on X" is a source claim that goes to
-Evidence hygiene rather than to pixels.
+model, the default fails here), `mcp__neon__run_sql`, `mcp__Blender__render_viewport_to_path`. **Route on the claim, never the file type**:
+a static PNG of a game goes to recipe 3 because the claim is "runs smooth", and "built on X" is a source claim for Evidence hygiene.
 
 ---
 
@@ -381,10 +380,10 @@ A probe with no pre-declared expected observable is a tour, not a test.
 | Secrets redacted before evidence is written | Tokens, keys, PII out of transcripts and logs |
 | Every completed verdict declares its blind spots | `not_probed` per C1; an unprobed area counts neither for nor against |
 
-† If a summary, README, CHANGELOG or commit message is reachable from an arena path, staging failed: re-strip and re-spawn. The
-pre-flight that catches it is `ROLES.md`'s `critic-seal.sh`, whose grep surface is C3.6's — prose fields and tracked source only, never
-a bare `/Users/`, which every build tree contains and which fails the seal on correct output. Compliance claims ("built on the design
-system", "fully typed", "no direct DOM access") were false in a real run, and only the source revealed it:
+† If a summary, README, CHANGELOG or commit message is reachable from an arena path, staging failed: re-strip and re-spawn. The pre-flight
+that catches it is `ROLES.md`'s `critic-seal.sh`, whose grep surface is C3.6's — prose fields and tracked source only, never a bare
+`/Users/`, which every build tree contains and which fails the seal on correct output. Compliance claims ("built on the design system",
+"fully typed", "no direct DOM access") were false in a real run, and only the source revealed it:
 
 ```bash
 grep -rEn "from ['\"](@/components/ui|@/design-system|@radix-ui)" src/ | wc -l   # claimed usage

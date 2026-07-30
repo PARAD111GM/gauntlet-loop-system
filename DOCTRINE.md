@@ -3,12 +3,12 @@
 Why the Gauntlet Loop works, and what breaks it. Read it off-run — `install/SKILL.md` loads it
 `never`, deliberately. Return when a run is misbehaving and you need to name the dropped invariant.
 
-**This file holds no contract.** `CONTRACTS.md` (v2) freezes the verdict schema (C1), the stop rule
-(C2), the path layout (C3), the emission budget (C4) and the modality capability matrix (C5). Numbers,
-fields, paths and capabilities appear below only as a *derivation of* or a *pointer to* one of those
-five. Where this file and `CONTRACTS.md` disagree, `CONTRACTS.md` is right and this file is the bug.
-Every rule here was then run back over this repo's own artifacts: where a rule condemned correct
-output, the rule was fixed, not the output. Four such fixes are marked *self-test*.
+**This file holds no contract.** `CONTRACTS.md` (v2) freezes the verdict schema (C1), the stop rule (C2),
+the path layout (C3), the emission budget (C4) and the modality capability matrix (C5). Numbers, fields,
+paths and capabilities appear below only as a *derivation of* or a *pointer to* one of those five. Where
+this file and `CONTRACTS.md` disagree, `CONTRACTS.md` is right and this file is the bug. Every rule here
+was then run back over this repo's own artifacts: where a rule condemned correct output, the rule was
+fixed, not the output. Four such fixes are marked *self-test*.
 
 Five invariants. Three are the irreducible core: a goal aimed at a **named external artifact**, a
 **blind judgment** that decides against it, **powers separated** so nobody grades their own work. The
@@ -22,7 +22,7 @@ and a round counter becomes the termination rule, and the core then rots with no
 
 | # | Invariant | Drop it and you get | Cheapest detection |
 |---|---|---|---|
-| 1 | Concrete external bar | Convergence on "good for AI" | Read each verdict's `observations`: one entry per arena side, each carrying the command that produced it. Then re-run C3.4's hash diff |
+| 1 | Concrete external bar | Convergence on "good for AI" | Read each verdict's `observations` against what C1.2 requires of an unblocked critic, then re-run C3.4's hash diff |
 | 2 | Delegated decomposition | A ceiling equal to the operator's mental model | Diff artifact structure against the noun list in the launch prompt |
 | 3 | Separation of powers | Optimized evidence, not measured evidence | For each number in the round report, name the process that emitted it |
 | 4 | Blind forced choice | Score inflation with flat quality | Ask whether the headline metric can rise while the bar artifact is untouched |
@@ -41,26 +41,24 @@ that is real, non-zero, and points nowhere.
 no better in anyone else's. It plateaus where the model lands unaided, then polishes that level while
 cost accrues and reported quality rises, the previous round being the only referent left.
 
-**Detection at selection time.** Ask of the `BAR` line, before round 1: *which artifact, and what
-exactly does a fresh agent open to see it?* Three failing answers, all common: a category
-(`"modern SaaS dashboards"`); an adjective (`"AAA quality"`); a previous revision of the work under
-construction. `LAUNCH.md` §3 grades each question with a pass test and a failure action.
+**Detection at selection time.** Ask of the `BAR` line, before round 1: *which artifact, and what exactly
+does a fresh agent open to see it?* Three common failures: a category (`"modern SaaS dashboards"`), an
+adjective (`"AAA quality"`), a previous revision of the work. Pass tests and failure actions: `LAUNCH.md` §3.
 
 **Detection per judgment — and it is not a receipt from the critic.** The bar is captured once into
 `$RUN/bar/` before round 1 and hashed with C3.4's cwd-pinned command; the tree is C3.2. The arena agent
 stages and seals it — `ROLES.md` owns that role, C3.5 is why a Workflow script cannot — and no judge
-opens the bar ad hoc. **Do not ask a critic which file under `$RUN/bar/` it opened.** That question
-hands over the mapping the blind depends on, and there is nowhere to put the answer: C1.1 is closed, so
-a per-judgment re-open receipt is a required key no writer produces. The replacement is already in C1:
-one `observations` entry per arena side, each carrying a copy-pasteable command and a literal result
-(C1.6).
+opens the bar ad hoc. **Do not ask a critic which file under `$RUN/bar/` it opened.** That question hands
+over the mapping the blind depends on, and there is nowhere to put the answer: C1.1 is closed, so a
+per-judgment re-open receipt is a required key no writer produces. The replacement is already in C1: one
+`observations` entry per arena side, each carrying a copy-pasteable command and a literal result (C1.6).
 
-*Self-test — the audit has two cases, not one.* A judgment that opened nothing cannot produce that
-pair, **unless it is the blocked path**, where C1.2 legally returns `choice: null` with `blocker` set and
-no observations at all. A null choice with a blocker is a working critic reporting an obstacle, and
-re-judging it is the whole remedy; an empty `observations` beside a real `choice` is a vote, and the
-round-close audit rejects it. An audit that cannot tell those apart condemns the one path C1.2 built to
-keep a blocked critic from inventing evidence.
+*Self-test — the audit has two cases, not one.* A judgment that opened nothing cannot produce that pair,
+**unless it is the blocked path**, where C1.2 legally returns `choice: null` with `blocker` set and no
+observations at all. A null choice with a blocker is a working critic reporting an obstacle, and re-judging
+it is the whole remedy; an empty `observations` beside a real `choice` is a vote, and the round-close audit
+rejects it. An audit that cannot tell those apart condemns the one path C1.2 built to keep a blocked critic
+from inventing evidence.
 
 Bar *drift* is a hash check on the harness side, never a claim inside a verdict: re-run C3.4's diff at
 every round close (`FAILURE-MODES.md` F3), exactly as C3.4 writes it, or an unchanged bar reports
@@ -136,12 +134,11 @@ against a frozen external artifact **cannot inflate through the score** — one 
 not yours to change. It can still inflate through the *evidence* handed to the judge: see "The claim,
 stated precisely".
 
-**Exact failure when dropped.** Inflation with a straight face. The same FPS loop scored itself 27,
-then 38, then 43 against its own rubric across three waves. Through that whole climb `MouseLook.update`
+**Exact failure when dropped.** Inflation with a straight face. The same FPS loop scored itself 27, then
+38, then 43 against its own rubric across three waves. Through that whole climb `MouseLook.update`
 integrated a critically damped spring with semi-implicit Euler, which diverges below roughly 55fps and
-drove the camera to 7.3e46, and Pointer Lock failed silently with no user feedback. A human found both
-in ten minutes of play; four critic passes over 34 still frames had not. The rubric was measuring its
-own convergence.
+drove the camera to 7.3e46, and Pointer Lock failed silently. A human found both in ten minutes of play;
+four critic passes over 34 still frames had not. The rubric was measuring its own convergence.
 
 **Detection.** One question: *can the headline number rise while the bar artifact is untouched?* If
 yes, it is a rubric wearing a gate's clothes. Second: did the judge know which candidate was the
@@ -155,22 +152,22 @@ often missed: *who chose the evidence?* Anyone with a stake, and the gate is ope
 **Why it exists.** A round budget is a deadline, and a deadline is the cheapest target in the room.
 
 **Exact failure when dropped.** Mechanism argument, unobservable from inside the run by construction,
-which is itself the problem: **countable targets dominate uncountable ones under any satisficing
-policy.** "Beat the bar" is unbounded and unverifiable in the moment; "reach round 3" is checkable at a
-glance. Effort redistributes toward *sufficient for round 3*, the report cannot tell "converged" from
-"ran out of counter", and a quality decision has been laundered into a schedule decision.
+which is itself the problem: **countable targets dominate uncountable ones under any satisficing policy.**
+"Beat the bar" is unbounded and unverifiable in the moment; "reach round 3" is checkable at a glance.
+Effort redistributes toward *sufficient for round 3*, the report cannot tell "converged" from "ran out of
+counter", and a quality decision has been laundered into a schedule decision.
 
 **Detection.** Grep the launch prompt, every role prompt, and the orchestration script — not the
 reference prose, which derives these numbers and would flag itself — for a number adjacent to `round`,
-`iteration`, `pass`, `attempt`, `wave`, `retry`. The test is not whether a number sits beside `round`;
-it is **whether hitting that number can be reported as done.**
+`iteration`, `pass`, `attempt`, `wave`, `retry`. The test is not whether a number sits beside `round`; it is
+**whether hitting that number can be reported as done.**
 
-*Self-test — two legal hits exist and the grep must not condemn them.* C2.1's abort clause passes: it
-breaks the loop, says *abort*, claims no completion. `OPERATIONS.md` §9's stall trigger passes too: it
-changes tactics — re-cut the part, change the modality — and closes nothing. What fails is a
-`for (r = 1; r <= 5; r++)` that falls out the bottom and prints the artifact. C2.3 is why a compliant
-repo has no such number in any *prompt*: the cap and the stall triggers live in the script.
-Second signal: if you can predict the stop time before you start, you have a counter.
+*Self-test — two legal hits exist and the grep must not condemn them.* C2.1's abort clause passes: it breaks
+the loop, says *abort*, claims no completion. `OPERATIONS.md` §9's stall trigger passes too: it changes
+tactics — re-cut the part, change the modality — and closes nothing. What fails is a `for (r = 1; r <= 5;
+r++)` that falls out the bottom and prints the artifact. C2.3 is why a compliant repo has no such number in
+any *prompt*: the cap and the stall triggers live in the script. Second signal: if you can predict the stop
+time before you start, you have a counter.
 
 ---
 
@@ -195,10 +192,9 @@ blind. Same words, opposite value. Including this file.
 it priced a minimum run beyond what anyone would spend. So the rule was never run, and a rule nobody
 runs governs nothing. **Machinery is a liability, and so is length.** Deleting is a contribution.
 
-**Falsifiable with the system's own primitive, in one run.** Emit the short prompt and your long one for
-the same goal, run both, blind-compare the outputs; if the long one wins, this section is wrong for your
-domain, so report that. Nobody here has run it — the claim rests on the four mechanisms, and C5.6
-records that the tournament which would settle it has not run.
+**Falsifiable with the system's own primitive, in one run.** Emit the short prompt and your long one for the
+same goal, run both, blind-compare the outputs; if the long one wins, this section is wrong for your domain,
+so report that. Nobody here has run it, so the claim rests on the four mechanisms.
 
 **The test before anything enters a launch prompt.** *Would a competent model have done this anyway?* If
 yes, cut it. If no: *does this constrain the deliverable, or plan the work?* Constraints may stay; plans
@@ -222,22 +218,20 @@ Four necessary properties. Missing any one makes it not a bar.
 reachable bar supplies pressure until it is reached and then none; an unreachable one supplies it for the
 life of the loop and forces termination onto marginal gain, the honest criterion. It is also the property
 people settle by feel — "I'd be surprised if we beat it" — in a system whose thesis is that introspective
-referents drift. Don't; run the probe. It is the cheapest money here and **not spent twice: that
-unassisted pass is the round-0 artifact** every later comparison measures against. Keep it in the run
-tree as round 0 (C3.2) or round 1 has nothing to beat.
+referents drift. Don't; run the probe. It is the cheapest money here and **not spent twice: that unassisted
+pass is the round-0 artifact** every later comparison measures against. Keep it in the run tree as round 0
+(C3.2) or round 1 has nothing to beat.
 
 **Run on this repo, the probe convicts us.** Every wave-1 file beat the baseline prompt, our own
-agent-systems bar, which by the row above puts that bar below the ceiling. C5.6 rules on it: the
-reference files are not the emission, so the result does not condemn the bar; the emission is the
-*launch prompt*, and that tournament has not run. Until it does, no file here may claim the baseline has
-been beaten. If the tournament eventually settles it that way, escalation targets are
-`BARS.md` § BAR ESCALATION — and escalation is available only after a stop (C2.5).
+agent-systems bar, which by the row above puts that bar below the ceiling. C5.6 rules on it: the reference
+files are not the emission, so the result does not condemn the bar; the emission is the *launch prompt*, and
+that tournament has not run. Until it does, no file here may claim the baseline has been beaten. If it ever
+settles that way, escalation is `BARS.md` § BAR ESCALATION, and only after a stop (C2.5).
 
-The fifth requirement is a property of the *pairing*, not of the bar: **the modality the bar is inspected
-in must show the defects that matter for this goal.** A perfect bar inspected through the wrong sense is
-a bar you cannot lose to — three marketing stills cannot expose a divergent integrator, so the candidate
-wins on stills and the run ends on a defect it never looked at. Admission is graded operationally in
-`LAUNCH.md` §3; bars per domain, `BARS.md`.
+The fifth requirement is a property of the *pairing*, not of the bar: **the modality the bar is inspected in
+must show the defects that matter for this goal.** A perfect bar inspected through the wrong sense is a bar
+you cannot lose to — three marketing stills cannot expose a divergent integrator, so the candidate wins on
+stills and the run ends on a defect it never looked at. Bars per domain: `BARS.md`.
 
 ---
 
@@ -254,10 +248,9 @@ The loss is real: forced choice gives direction, not distance. Correct trade —
 needs, and distance is what invites inflation, because distance is a number and numbers get optimized.
 
 **When one comparison is not enough,** do not reach for a score. Reach for repetition: independent
-judgments, fresh context each, order derived rather than drawn, reported as a **count of picks** — not
-as a rate, because a rate invites a threshold, and a threshold nobody can afford to run is worse than
-counting. How many judgments, and what a count licenses, is C2. Judge prompt: `ROLES.md`. Evidence:
-`INSPECTION.md`.
+judgments, fresh context each, order derived rather than drawn, reported as a **count of picks** — not as a
+rate, because a rate invites a threshold, and a threshold nobody can afford to run is worse than counting.
+How many judgments, and what a count licenses, is C2. Judge prompt: `ROLES.md`. Evidence: `INSPECTION.md`.
 
 ### The claim, stated precisely
 
@@ -274,16 +267,15 @@ not at the artifacts themselves. So the count of picks moves for three reasons, 
 
 Path 3 is the shape of the `0.000px` velocity guard in invariant 3. Nothing there was *scored*
 dishonestly: the instrument was wrong, and forced choice would have fed the same `0.000px` into a
-cleaner-looking gate. Replacing the score relocates the pressure onto the evidence, where it is harder
-to see, because evidence looks like fact. So, honestly stated: *forced choice against a frozen external
-artifact cannot inflate through the score, and will inflate through the evidence unless parity is
-enforced.*
+cleaner-looking gate. Replacing the score relocates the pressure onto the evidence, where it is harder to
+see, because evidence looks like fact. Honestly stated: *forced choice against a frozen external artifact
+cannot inflate through the score, and will inflate through the evidence unless parity is enforced.*
 
 **Non-negotiables for a judgment to count.**
 
-- Provenance stripped from both candidates — no file names, timestamps, ordering hints, commit
-  messages, or builder summaries in the judge's context. Order derived per judgment rather than drawn:
-  a Workflow script has no random source.
+- Provenance stripped from both candidates — no file names, timestamps, ordering hints, commit messages,
+  or builder summaries in the judge's context. Order derived per judgment, not drawn: a Workflow script has
+  no random source.
 - One question, not a form. Evidence cited: a verdict with no named observation is a vote.
 - Fresh context per judgment. A judge that has seen the last three rounds is judging the trajectory.
 - **Modality matched to the defect class.** A still image cannot see a divergent integrator. Behaviour
@@ -294,12 +286,12 @@ enforced.*
   at the same fidelity, with candidate-independent selection: the probe set is fixed before either
   artifact is looked at, and no builder chooses, crops, or frames a capture. Where the bar exists only
   as a proxy, degrade the candidate to the proxy's fidelity — stills against stills, same encode, same
-  viewport — or label the verdict `proxy-biased`, whose standing is C1's and C2's, not this file's.
-  Parity is necessary and not sufficient: **matching two artifacts in a channel the harness cannot read
-  buys nothing.** A matched pair of recordings still carries motion that C5's Motion row reaches only
-  through a `window.__setTime(ms)` hook, and audio the critic cannot hear at all — which is why C5's
-  Audio row is PROXY and C5.4 fixes what such a verdict must carry. Order no comparison C5 does not
-  grant. Per-domain mechanics: the **BLIND** block in each `BARS.md` domain section.
+  viewport — or label the verdict `proxy-biased`, whose standing is C1's and C2's, not this file's. Parity
+  is necessary and not sufficient: **matching two artifacts in a channel the harness cannot read buys
+  nothing.** A matched pair of recordings still carries motion that C5's Motion row reaches only through a
+  `window.__setTime(ms)` hook, and audio the critic cannot hear at all — which is why C5's Audio row is
+  PROXY and C5.4 fixes what such a verdict carries. Order no comparison C5 does not grant. Per-domain
+  mechanics: the **BLIND** block in each `BARS.md` domain section.
 
 ---
 
@@ -315,9 +307,9 @@ enforced.*
 
 **Article 1. No subsystem grades itself, and no subsystem supplies the evidence it is graded on.**
 Measurement *and capture* live in harness code no builder owns; builder-emitted numbers are quarantined
-under a self-reported namespace and are claims until independently reproduced. Choosing which probe
-runs, and which frame, excerpt or trace window reaches the judge, is a judging power: it belongs to the
-harness, never to anyone who benefits from the answer.
+under a self-reported namespace and are claims until independently reproduced. Choosing which probe runs,
+and which frame, excerpt or trace window reaches the judge, is a judging power: it belongs to the harness,
+never to anyone who benefits from the answer.
 
 **Article 2. A builder's claim of compliance is worth nothing.** In a real run, "built on the design
 system" was false; only grepping the imports revealed it. Critics verify by inspecting artifacts, never
@@ -340,22 +332,20 @@ exhaustion is neither of those — it is an **abort**, reported with the word *a
 Most runs end on collapse or abort. A file, gate or README that leads with crossing sells the exit that
 almost never fires, and mis-set termination expectation is the one way to lose money on a good prompt.
 
-**Nothing in this section is operative.** C2.1 holds the clauses, C2.2 the same count by hand. Anything
-below that reads like a threshold is a derivation or a worked case; the values are C2's. C2's thresholds
-are fixed before round 1 and recorded in `run.json`, because a threshold chosen after seeing the data is
-not a threshold, it is a preference — the same reason `BARS.md` never lowers a bar.
+**Nothing in this section is operative.** C2.1 holds the clauses, C2.2 the same count by hand; anything below
+that reads like a threshold is a derivation. Those thresholds are fixed before round 1 and recorded in
+`run.json`, because a threshold chosen after seeing the data is a preference — the same reason `BARS.md`
+never lowers a bar.
 
-### Five judges: what that buys and what it cannot
+### The small panel: what it buys and what it cannot
 
-A panel is a purchase, and the only honest question is what it can pay for. Five fresh critics with one
-judgment each is a rule an operator executes on their fingers at round close, and it **speaks loudly
-about a large quality gap and stays honestly silent about a small one.** Nearly all of the panel picking
-our side is a real signal about a visible difference; it is not evidence that a subtle one exists, and no
-report may present it as one.
-
-That silence is not a defect to engineer around. It is why C1.4 makes `indistinguishable` a signal to
-**change modality** rather than a tie to be broken: at this panel size, resolution comes from looking
-somewhere new, never from buying more judges. Reach for `INSPECTION.md`, via `OPERATIONS.md` §9.
+A panel is a purchase, and the only honest question is what it can pay for. C2.1 buys a rule an operator can
+execute on their fingers at round close, and states the price plainly: **it speaks loudly about a large
+quality gap and stays honestly silent about a small one.** Almost the whole panel picking our side is a real
+signal about a visible difference; it is never evidence that a subtle one exists, and no report may present
+it as one. That silence is not a defect to engineer around — it is why C1.4 makes `indistinguishable` a
+signal to **change modality** rather than a tie to be broken. At this panel size resolution comes from
+looking somewhere new, never from buying more judges: `INSPECTION.md`, via `OPERATIONS.md` §9.
 
 ### Why collapse needs two halves and two rounds
 
@@ -364,33 +354,32 @@ right shape — deltas of +11 then +5 — and was worthless, being self-scored. 
 self-referential metric measures the metric converging. Compute it on blind picks against the frozen bar
 or against the previous round's artifact; never on anything the run authors.
 
-C2.1's dry round requires two conditions at once, and each fails alone. *The delta panel did not prefer
-the new artifact* says this round did not beat the last — on its own that argues for one more round,
-because a flat round happens. *The round opened no new gap* says nobody found anything left to fix — on
-its own it is satisfied by critics who looked only in an exhausted modality. Together they say the loop
-has stopped both winning and learning, the only honest reading of "done" available when the bar is out of
-reach. Requiring **two consecutive** dry rounds is the hysteresis: one quiet round is noise at this panel
-size, two is a trend, and any non-dry round resets the count, so the cheap rule costs at most one extra
-round and never a false stop on a single flat one.
+C2.1's dry round requires two conditions at once, and each fails alone. *The delta panel did not prefer the
+new artifact* says this round did not beat the last — on its own that argues for one more round, because a
+flat round happens. *The round opened no new gap* says nobody found anything left to fix — on its own it is
+satisfied by critics who looked only in an exhausted modality. Together they say the loop has stopped both
+winning and learning, the only honest reading of "done" available when the bar is out of reach. Making a dry
+round **repeat** before it closes anything is the hysteresis (C2.1 clause 3): one quiet round is noise at
+this panel size, a repeat is a trend, and any non-dry round resets the count, so the cheap rule costs at most
+one extra round.
 
 Below collapse sits regression: a delta panel preferring the **previous** artifact is not convergence, and
 reporting it as collapse ships the worse thing, so C2.1 rolls back and re-cuts. Above it sits the veto — a
-frozen probe that passed in an earlier round and now fails makes the round a FAIL whatever any panel
-picked, because a run trading working behaviour for a prettier surface goes backwards while every
-judgment says otherwise.
+frozen probe that passed in an earlier round and now fails makes the round a FAIL whatever any panel picked,
+because a run trading working behaviour for a prettier surface goes backwards while every judgment says
+otherwise.
 
 **Abort is not a completion.** If the panel C2 requires is out of budget, stop, say *abort*, record the
-resume handle. A loop that cannot afford its judgments has not converged; it ran out of money, and a
-soft finish here is the most expensive lie in the system.
+resume handle. A loop that cannot afford its judgments has not converged; it ran out of money, and a soft
+finish here is the most expensive lie in the system.
 
-**Illegitimate stopping rules,** each of which has ended a real loop early: a round counter of any kind,
-or any number that can be reported as done (invariant 5); the builder declaring done, or a critic saying
-"this is good now" with no comparison; one critic closing a part, which is n = 1 and why C2.4 makes part
-verdicts advisory; "judge twice with sides swapped, then stop" — two judgments agreeing is a coin landing
-the same way twice, and the swap is a blindness check on a single judgment (`FAILURE-MODES.md` F11), never
-a stop; a panel smaller or looser than the one C2.1 names, in either direction; `indistinguishable`
-treated as a win or as clearing anything (C1.4); the operator getting tired without recording it as an
-abort.
+**Illegitimate stopping rules,** each of which has ended a real loop early: a round counter, or any number
+that can be reported as done (invariant 5); the builder declaring done, or a critic saying "this is good now"
+with no comparison; one critic closing a part, which is n = 1 and why C2.4 makes part verdicts advisory;
+"judge twice with sides swapped, then stop" — two judgments agreeing is a coin landing the same way twice,
+and the swap is a blindness check on one judgment (`FAILURE-MODES.md` F11), never a stop; a panel smaller or
+looser than C2.1's, either way; `indistinguishable` treated as a win (C1.4); the operator getting tired
+without recording it as an abort.
 
 ---
 

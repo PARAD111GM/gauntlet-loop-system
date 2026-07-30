@@ -7,13 +7,14 @@ that blind-compare your artifact against it.
 that this round beat the last one (`CONTRACTS.md` C2 clause 3). Crossing the bar is a real exit and
 rare by design (clause 2). Running out of budget is an **abort**, reported with that word (clause 1).
 A regression stop rolls the round back instead of completing it (clause 4). A frozen probe that
-passed before and now fails fails the round and blocks any stop in it (clause 0). The rule itself
-lives in C2 and nowhere else; every number in it belongs to that file.
+passed before and now fails fails the round and blocks any stop in it (clause 0). C2 is normative for
+the rule; `OPERATIONS.md` §5 is its only implementation. Every number in it belongs to those two and
+to no other file.
 
 `CONTRACTS.md` is normative for the five frozen contracts; where any file here disagrees with it,
 that file is the bug, this one included. What the loop does not do is grow: the emission stays inside
-C4.1's word ceiling, still longer than Shumer's ~120 words, a cost that stands open and unpriced
-rather than won (C5.6).
+C4.1's word ceiling, still longer than Shumer's ~120 words — a cost, not a win, until the comparison
+runs (C5.6).
 
 ---
 
@@ -31,19 +32,20 @@ STOP: my call
 ```
 
 Section 1 only, deliberately: an agent that has swallowed the whole repo writes worse prompts than
-one that has read the goal. Depth is for you and the orchestrator, never the emission. `propose 3` is
-the default worth taking, because bar selection is this system's main contribution. Already have one?
-Write it on that line. Vetted bars per domain: `BARS.md`.
+one that has read the goal. `propose 3` is the default worth taking, because bar selection is this
+system's main contribution. Already have one? Write it on that line. Vetted bars: `BARS.md`.
 
 **2. Pick the bar.** `propose 3` returns three defended candidates and halts. Reply `1`, `2`, `3`, or
 name your own. A bar already named comes straight back as header plus prompt.
 
-**3. Read the header, then set STOP.** Four lines: `BAR` / `ACCESS` / `MODALITY` / `STOP`. `ACCESS`
-names the URL, command or path the generator opened *this session* and what came back; unverified, or
-login-walled with no `PROXY` named, is the reject row that sends most emissions back (all four reject
-rows: `LAUNCH.md` §2). If `STOP` says `my call`, set it before you spend, taking the rule from C2 and
-the ceiling from C4 rather than inventing either here. The bar is out of reach by construction, so a
-loop with no stop rule cannot end: the one way to lose money on a good prompt.
+**3. Read the header, then set the ceiling.** Four lines: `BAR` / `ACCESS` / `MODALITY` / `STOP`.
+`ACCESS` names the URL, command or path the generator opened *this session* and what came back;
+unverified, or login-walled with no `PROXY` named, is the reject row that sends most emissions back
+(all four reject rows: `LAUNCH.md` §2). `STOP` carries your own words plus the ceiling and nothing
+else — it is a budget line, never a stop rule (`LAUNCH.md` §2). The stop rule is never yours to
+write: C2 holds it and the harness evaluates it (`OPERATIONS.md` §5). What you set before you spend
+is the ceiling, from C4. The bar is out of reach by construction, so a loop with no ceiling cannot
+end: the one way to lose money on a good prompt.
 
 **4. Freeze the bar, then launch.** Get the named artifact into the run's `bar/` **once** — download,
 archived page, screenshot, screen recording, a copy of a bar already shipped in `SKILL_DIR/bars/`
@@ -54,7 +56,8 @@ comparison against the same bar (F3), and you cannot disprove it. Then paste and
 
 The installed form (`install/SKILL.md`, which becomes `SKILL_DIR/SKILL.md`) collapses 1–4 into one
 gate: bar, runner-up, probes, stop rule and derived ceiling printed, stops for your `OK`, opens the
-run directory itself, re-verifies the bar hash before spending, and resumes same-session only (C2.6).
+run directory itself, re-verifies the bar hash before spending, and resumes from the last completed
+round in any later session, hash re-verified first (C2.6).
 `/gauntlet build a Stripe-quality billing settings page for our admin app`
 
 ---
@@ -63,15 +66,12 @@ run directory itself, re-verifies the bar hash before spending, and resumes same
 
 The loop is not ours. It is Matt Shumer's Gauntlet Loop —
 [prompt](https://github.com/mshumer/Claude-of-Duty/blob/main/prompt.md),
-[write-up](https://somethingbig.ai/gauntlet-loop). His ~120 words get five things right, and this
-system preserves all five:
-
-1. A concrete, external, **inspectable** bar. Not "high quality."
-2. Decomposition **delegated** to the model, never handed down by the human.
-3. **Separation of powers.** The builder never grades its own work.
-4. **Blind A/B** against the bar instead of rubric scoring.
-5. **No round limit.** Termination is quality- or budget-driven. The one counter in the system is an
-   abort backstop in the harness script (C2.3), never a pace-setter and never in a role prompt.
+[write-up](https://somethingbig.ai/gauntlet-loop). His ~120 words get five things right and this
+system preserves all five: a concrete, external, **inspectable** bar, not "high quality";
+decomposition **delegated** to the model, never handed down; **separation of powers**, so the builder
+never grades its own work; **blind A/B** against the bar instead of rubric scoring; and **no round
+limit**, termination being quality- or budget-driven — the one counter in the system is an abort
+backstop in the harness script (C2.3), never a pace-setter and never in a role prompt.
 
 | | Baseline | This system |
 |---|---|---|
@@ -79,8 +79,6 @@ system preserves all five:
 | **Inspection** | "check it visually" — useless for an API | `INSPECTION.md` matches probe to artifact: behaviour→drive it, latency→timed repeat runs, prose→a fresh reader who never saw the intent, API→contract calls. What this machine cannot inspect is declared UNAVAILABLE and routed to a named proxy or a human, never faked (C5.3) |
 | **Failure modes** | open: critic capture, bar drift, non-termination, runaway spend | `FAILURE-MODES.md` gives each a detection signal and a mitigation; `ROLES.md` blinds the critic structurally, and its `critic-seal.sh` proves the seal held |
 | **Operability** | one-shot paste; no resume, no ceiling, no trail | `OPERATIONS.md`: cost ceilings, parallelism caps, resume, per-round evidence |
-
-Two honest limits.
 
 - **The head-to-head has not run.** Everything above is architectural. The licensing comparison — our
   emitted prompt against the baseline adapted to the same goal, same model and budget, judged blind —
@@ -106,7 +104,7 @@ Two honest limits.
  [2] DECOMPOSE .... the orchestrator splits the goal into parts. not you.       ROLES.md
     |
     +--> one builder per part: parallel, fresh context, no critic access,
-    |    a worktree each when they share files (Workflow parallel(), cap ~16).
+    |    a worktree each when they share files (parallel(), min(16, cores-2): ~10 at once).
     |    They hand over artifacts and evidence, never claims of compliance.
     v
  [3] JUDGE ........ fresh-context critics. Each reads no builder summary, gets  INSPECTION.md
@@ -115,15 +113,14 @@ Two honest limits.
     |               critique is advisory and closes nothing (C2.4); only the
     |               two round-close panels — the whole against the bar, and
     |               this round against last — can end a run. Sizes, and who
-    |               may stop: C2. Two part critics disagree? the ARBITER       ROLES.md §4
+    |               may stop: C2. Two part critics disagree? the ARBITER       ROLES.md
     |               re-runs the deciding probe, on that edge only, overruling
     |               on evidence. One critic, no arbiter: cost, no signal (F14).
     v
  [4] CLOSE ........ gaps that name where to look go back to the builders,      OPERATIONS.md
     |               spend is recorded, the stop rule is evaluated exactly once.
     v
-   round n+1, or stop / abort per C2 — the run directory is what you keep:
-   artifacts, every verdict, and bar.sha256
+   round n+1, or stop / abort per C2. You keep the run dir: artifacts, every verdict, bar.sha256
 ```
 
 ---
@@ -140,7 +137,7 @@ Two honest limits.
 | `INSPECTION.md` | Before the first critic round. Non-negotiable for anything not judged by eye. |
 | `FAILURE-MODES.md` | The loop runs but quality is flat, rounds never end, or the critic has gone agreeable. |
 | `OPERATIONS.md` | Before an unattended or overnight run: ceilings, parallelism, resume, model-at-spawn, evidence layout, stall playbook (§9). |
-| `EXAMPLES.md` | You want three real end-to-end runs in different domains before trusting it. |
+| `EXAMPLES.md` | You want three worked end-to-end runs in different domains — constructed, arithmetic checkable, drawn from real failures — before trusting it. |
 | `install/SKILL.md` | Making `/gauntlet <goal>` work in every session. |
 
 Composes with, does not duplicate: `verification-loop` (its build/type/test/security gates run
@@ -164,10 +161,13 @@ Composes with, does not duplicate: `verification-loop` (its build/type/test/secu
 
 ## COST
 
-Order of magnitude per run on Opus-class models, for your own planning only: **~$1** for a small
-prose artifact, **~$10** for feature-scale software with a few subsystems, **~$100–1,000+** for an
-open-ended "make it match the bar" build. Judging dominates, not building: a round spawns more judges
-than builders (C4.2). Dollars are not a knob here, and no `STOP` line may be priced in them (C4.4).
+**No dollar figure appears on this page, and the floor is why.** The cheapest *compliant* run is
+C4.3's minimum round count — round 1 is never dry and collapse needs two consecutive dry ones — times
+C4.2's per-round agent count, and C2.1 forbids shrinking either panel for a small artifact. A
+one-page prose run therefore costs what feature-scale software costs at that floor: the bill tracks
+panel size, not part count, at every scale of goal (`OPERATIONS.md` §4). Price it from §4's two
+measured per-agent costs and your own rate card. Judging dominates, not building (C4.2), and no
+`STOP` line may be priced in dollars (C4.4).
 
 Neither the baseline's `/loop until it's utterly perfect` nor this loop has a ceiling unless you
 impose one, at the harness, before launch: `budget=<n>` on the installed skill, `budget.total` in a
@@ -176,6 +176,5 @@ numbers from there, never from this page. Never put a ceiling in the launch prom
 competes with the bar, and the counter wins (`LAUNCH.md` §6).
 
 Two levers. Cheap builders with an expensive critic cuts roughly an order of magnitude at little
-quality cost, never the reverse, since a cheap critic is a captured critic. And set every model **at
-spawn**: a resumed agent silently reverts to the session default, which is how you pay Opus rates for
-Haiku work.
+quality cost, never the reverse — a cheap critic is a captured critic. And set every model **at
+spawn**: a resumed agent reverts to the session default, which is how you pay Opus rates for Haiku.

@@ -81,11 +81,10 @@ Real cost of forgetting: in a verified run on this machine (`defaultModel: claud
 agents inherited the session default. Five were builders. That round burned 2.31M tokens.
 
 `effort` participates in the resume cache key alongside `model` and the prompt, so changing it re-runs
-the agent; `effort: 'low'` is right for mechanical probe capture, where the output *is* the evidence
-and no judgment is formed, and never for a judge. A `meta.phases` entry carries `title` and `detail`
-only — every phase row in the records on this machine has exactly `{index, title, type}` — so there is
-no per-phase model override to disclose in the permission dialog. `agentType` borrows a registered subagent
-(`'general-purpose'`, `'code-reviewer'`, …) and composes with `schema`.
+the agent; `effort: 'low'` is right for mechanical probe capture, where the output *is* the evidence and
+no judgment is formed, and never for a judge. A `meta.phases` entry carries `title` and `detail` only, so
+there is no per-phase model override to disclose in the permission dialog. `agentType` borrows a
+registered subagent (`'general-purpose'`, `'code-reviewer'`, …) and composes with `schema`.
 
 ## 3. Isolation
 
@@ -130,8 +129,12 @@ const MAX_ROUNDS = 12                        // C2.1 clause 1 backstop. An ABORT
 let roundCost = 250_000 + 40_000 * Math.max(0, parts.length - 4)   // C4.2's seed, then measured
 let dry = 0                                  // §5. MUST live out here: declared inside the loop it
                                              // resets every round, and clause 3 can never fire.
-for (let r = 1; r <= MAX_ROUNDS; r++) {
-  if (budget.total && budget.remaining() < roundCost) {          // clause 1, first half
+for (let r = 1; ; r++) {                     // unbounded on purpose — clause 1 is the only round exit
+  if (r > MAX_ROUNDS) {                                          // clause 1, second half
+    log(`ABORT at round ${r}: MAX_ROUNDS backstop, no stop rule fired. Resume handle per §8.`)
+    break
+  }
+  if (budget.total && budget.remaining() < roundCost) {           // clause 1, first half
     log(`ABORT at round ${r}: ${Math.round(budget.remaining() / 1000)}k left, a round costs ~${Math.round(roundCost / 1000)}k`)
     break
   }
@@ -166,18 +169,16 @@ files under `$RUN/probes/`, since re-authoring one every round silently changes 
 
 ## 5. Termination policy
 
-Never a round count. `MAX_ROUNDS` is an **abort** and must be reported as one.
-
 **The honest headline, because operators mis-set it and it is the one way to lose money on a good prompt:
 the bar sits above the ceiling by construction, so the normal exit is marginal-gain collapse — the panel
-can no longer show that this round beat the last one. Bar crossing is real and rare. Budget exhaustion is
-an abort, and gets reported with the word *abort*.**
+can no longer show that this round beat the last one. Bar crossing is real and rare. Never a round count:
+a spent budget and `MAX_ROUNDS` are both an *abort*, and get reported with that word.**
 
 **`CONTRACTS.md` C2 is the rule; this section is its only wiring, and `DOCTRINE.md` § Termination theory
 is the *why*.** Read C2 before editing a line below; C2.2 is the same rule by hand, for auditing a run
-without the script. Nothing else is consulted — no interval, no threshold from `run.json`, no counter
-except `MAX_ROUNDS` (C2.3). A run stops when a panel of five says so, and you can check it on your
-fingers.
+without the script. Nothing else is consulted — no interval, no threshold read out of `run.json`, and no
+counter beyond C2's own consecutive-dry count and the `MAX_ROUNDS` backstop (C2.3). A run stops when a
+panel of five says so, and you can check it on your fingers.
 
 ```js
 const WHOLE = parts.length, DELTA = parts.length + 1   // arena indices that cannot collide with a part
@@ -195,8 +196,9 @@ const theirs = i => v => v.choice !== 'indistinguishable' && v.choice !== candAt
 const vetoed = close.probeRegression
 if (vetoed) log(`round ${r} FAIL: frozen-probe regression. No stop may be declared this round.`)
 
-// 1 — ABORT. The budget half is §4's guard at the top of the loop.
-if (r > MAX_ROUNDS) { log(`ABORT at round ${r}: MAX_ROUNDS backstop. Resume handle per §8.`); break }
+// 1 — ABORT. Both halves live at §4's loop head, and the `for` there is deliberately unbounded:
+//     write `r <= MAX_ROUNDS` in the header instead and this clause can never fire, so the run ends
+//     silently on the loop condition rather than on a reported abort. That is the v1 defect class.
 
 // 2 — STOP: bar crossing. ONE arena, ONE side, the whole panel — never candAt per judge.
 const kX = X.filter(ours(WHOLE)).length
@@ -229,8 +231,8 @@ crossing test into a two-round timer. And `dry` lives outside the loop; declared
 unreachable, which is the same class of defect one level up.
 
 Round 1 is never dry, so rounds 2 and 3 are the earliest consecutive dry pair and the earliest the normal
-exit can fire is round **3**. Two inputs come from the round-close agent, the script having no filesystem:
-`probeRegression`, and `gapsOpened` —
+exit can fire is round **3**. `close` is the round-close agent's return — both panels' validated verdicts
+plus `probeRegression` and `gapsOpened` — because the script has no filesystem and cannot read either:
 
 ```bash
 awk -F'\t' -v r="$N" '$1==r && $3=="open"' "$RUN"/gaps.tsv | wc -l          # gapsOpened
@@ -273,9 +275,9 @@ confused (C3.1): `SKILL_DIR` holds the skill, `RUN` is `<target-repo>/.gauntlet/
 ```
 
 That is the whole list. A file not on it does not exist: no template copy, no per-round prompt dump, no
-arbiter log, no flattened verdict twin. Everything a sibling used to grep out of a twin comes from the
-`.json` (this section's watcher, §7) or from the run record (`MODEL:`, §2), and both are unforgeable by a
-judge in a way a hand-written footer never was.
+arbiter log, no flattened verdict twin. Everything a sibling used to grep out of a plaintext twin now
+comes from the `.json` (§7's watcher) or from the run record's own columns (§2) — neither of which a judge
+can write, which a hand-copied footer always could.
 
 `spend.tsv` column 3 is **output** tokens — the `budget.spent()` delta across the round, the same unit
 C4.2's seed is denominated in — because F21's cost check compares the two. The run record's `.tokens`
