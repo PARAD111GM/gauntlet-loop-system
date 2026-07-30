@@ -46,8 +46,9 @@ rigged-and-looks-rigorous. Three moves; each recipe's **PARITY** line says which
 | `ios(action)` | `mcp__Claude_Code_iOS_Simulator__control`: attach, launch, screenshot, detach, tap, swipe, touch_path, touch2_path, text, button, open_url (plus `…__build`) |
 | `Read` / `Bash` / `Grep` / `Agent` | Claude Code built-ins. `Read` displays PNG/JPG/PDF. `Agent` is a fresh-context subagent. |
 
-`pw.evaluate` takes `function: "() => …"`. `pw.take_screenshot` takes `target: <ref>` for a component crop and `scale: "device"` for
-native DPR. `pane.computer` takes `action: "zoom", region: [x,y,w,h]`. **Media and measurement binaries: C5.2 is the list, and no
+`pw.evaluate` takes `function: "() => …"`. **`pw.wait_for` takes `text`, `textGone` or `time` and nothing else — there is no `selector`
+argument; a DOM or font gate goes through `pw.evaluate`, polled.** `pw.take_screenshot` takes `target: <ref>` for a component crop and
+`scale: "device"` for native DPR. `pane.computer` takes `action: "zoom", region: [x,y,w,h]`. **Media and measurement binaries: C5.2 is the list, and no
 recipe here uses one it does not name.** Also usable, none of them media tools: `mcp__codex-cli__review` (cross-model; pass an explicit
 model, the default fails here), `mcp__neon__run_sql`, `mcp__Blender__render_viewport_to_path`. **Route on the claim, never the file type**:
 a static PNG of a game goes to recipe 3 because the claim is "runs smooth", and "built on X" is a source claim for Evidence hygiene.
@@ -57,7 +58,8 @@ a static PNG of a game goes to recipe 3 because the claim is "runs smooth", and 
 ## 1. Static visual — page, poster, deck, render
 
 ```text
-pw.navigate url → pw.resize 1440x900 → pw.wait_for text/selector proving webfonts+data loaded
+pw.navigate url → pw.resize 1440x900 → pw.wait_for text:"<string that appears only once data has landed>"
+  no such string? poll pw.evaluate function:"() => !!document.querySelector('<sel>') && document.fonts.status==='loaded'"
 pw.take_screenshot fullPage → Read the PNG               (seeing, not capturing)
 pw.resize 390x844 → pw.take_screenshot → Read
 pw.take_screenshot target:<ref> scale:"device"           (component crop at native DPR)
@@ -182,9 +184,10 @@ Assert on status **and** body shape **and** side effect (query the store). Error
 above probes the limiter, not load — that is recipe 7.
 **EVIDENCE** — Per call: method, status, timing, body with secrets redacted, plus the store query proving one side effect, exactly once.
 **STAGE** — Same request set, payloads and auth posture; label transcripts `A`/`B`, strip hostnames.
-**PARITY** — A Stripe-class bar is callable, so parity is normally full. A docs-only bar with no sandbox key cannot be called: reduce
-to contract comparison per `BARS.md` (one resource schema, one success, one error, the idempotency clause), set
-`parity: "proxy-biased"`, and run the adversarial and side-effect results as candidate budget checks.
+**PARITY** — A Stripe-class bar is callable, so parity is normally full. A docs-only bar with no sandbox key cannot be called: reduce to
+the contract comparison `BARS.md`'s API **BLIND** line specifies — that line fixes the set, and do not trim it, because the error
+taxonomy it requires is the surface that file names as the one generated APIs miss. Set `parity: "proxy-biased"`, and run the
+adversarial and side-effect results as candidate budget checks.
 **CANNOT DETECT** — Sustained load, correctness of the values returned, migration safety → 6, 7.
 
 ## 6. Data correctness
@@ -238,7 +241,8 @@ the Prose row and sends it to that gate, so the agent must never claim to have h
 3. CADENCE: the script below, identical over both sides, so numbers are diffable across rounds.
 ```
 ```bash
-# Strip fenced code and tables first, or the numbers describe the code and not the prose:
+F=prose.txt   # bind it: unbound, `> "$F"` writes nowhere and the block exits 1 before python3 ever runs.
+# Strip fenced code and tables, or the numbers describe the code and not the prose:
 awk '/^```/{f=!f;next} !f && $0 !~ /^\|/' in.md > "$F"
 python3 - "$F" <<'PY'
 import re,sys,statistics as st
@@ -343,8 +347,8 @@ Use `pass@k` / `pass^k` and the grader taxonomy from `~/.claude/skills/eval-harn
 *prompt* rather than a runnable system, the two-level blinding in `BARS.md` (Agent & prompt systems, BLIND) applies and **output-level
 breaks ties**: both prompts run on one goal at the same model and budget, their artifacts compared blind by whichever recipe the
 output's modality selects. Prompt-level alone is `parity: "proxy-biased"` and the pass@k table is a budget check. **C5.6 stands over this
-whole row: nothing may report that the baseline has been beaten until that output-level tournament has run.** Escalation targets if the
-bar proves to sit below the ceiling: `~/.claude/skills/verification-loop/SKILL.md`, `eval-harness/SKILL.md`.
+whole row: nothing may report that the baseline has been beaten until that output-level tournament has run.** Raising a bar that proves
+to sit below the ceiling is an operator move between runs, never a critic's: `OPERATIONS.md` §9 row 5.
 **CANNOT DETECT** — Rare tail failures at 1-in-200 → volume run. Tail-risk classes (injection, exfil) get dedicated cases, not sampling.
 
 ## Behavioural probe design — anything with state (recipes 2, 3, 5, 10, 12)
@@ -399,18 +403,15 @@ grep -rn "any\b" src/ --include=*.ts | wc -l
   label and never enters the JSON.
 - **Numbers stay out of the record.** C1.3 bans a numeric field at any depth, so every timing, percentile, count and budget check
   travels as literal text in `observed` — `"p95 14 ms"`, never `14`. A recipe asking for a bare number breaks that check.
-- **`parity` follows the fidelity move the PARITY line forced on you:** REDUCE or SPLIT → `matched`; LABEL → `proxy-biased`. Recipe 9
-  is always `proxy-biased`, recipe 10 unless the operator supplied the round-0 device recording (C5.4). C1.5 then owes a `human_gate`.
-- **Name the covering recipe for each blind spot.** "hover and focus states → recipe 2" is next-round triage; "hover states" is a
-  shrug.
+- **`parity` follows the fidelity move the PARITY line forced on you:** REDUCE or SPLIT → `matched`; LABEL → `proxy-biased`, which C1.5 then owes a `human_gate`. Which recipes are proxies by construction is C5.4's call, not this file's.
+- **Name the covering recipe for each blind spot.** "hover and focus states → recipe 2" is next-round triage; "hover states" is a shrug.
 
 **Nothing in this file tells the critic that a round number, a prior verdict, or a swapped twin of its judgment exists.** Position-bias
 staging belongs to the orchestrator (`FAILURE-MODES.md` F11) and decides nothing about a run; a critic that can describe it has been
 leaked to, and the verdict is void.
 
-The F9 read is structural: the modality that came back, against the defect class the part declared in `plan.md` (C3.2). The lexical
-`screenshot|\.png` grep is a hint and must never run as an audit line — recipes 1 and 4 are the *correct* modality for a static-visual
-dimension, so it flags every correct one. Coverage read-out for the round-close agent, a report and not a gate:
+The F9 read is structural — the modality that came back against the defect class the part declared in `plan.md` (C3.2) — and
+`FAILURE-MODES.md` F9 owns both that test and the standing of the lexical grep. Coverage read-out for the round-close agent, a report and not a gate:
 
 ```bash
 jq -r '[input_filename, .modality, .parity, (.not_probed // [] | length)] | @tsv' "$RUN"/r$N-*-verdict.json

@@ -196,28 +196,27 @@ frames cannot carry at all — stays in `r2/evidence/` with its command, out of 
 | r5 | Deadlock fixed, the veto gap appended `closed`, nothing else touched. | `k_D` 3 of 5. No new `open` row | **dry**: `dry = 1` |
 | r6 | A5 sightline dressing on the two dead-end wings. | `k_X` **2 of 5** — 4 needed, no crossing. `k_D` 2 of 5. No new `open` row | `dry = 2` → **STOP, clause 3** |
 
-**What went wrong, and how the system caught it.** In r2 two critics — one on A2's part arena, one in the delta panel
-— returned `modality: "viewed"` with three screenshots of a zombie crowd as their observations. It looked like a
-crowd. A2 is registered `measured` in `plan.md` on a behavioural `DEFECT_CLASS`, so the one string comparison flagged
-both and the orchestrator **voided them rather than appealing** — no judgment call anywhere in that path. Two fresh
-critics were spawned, the delta panel still closed at 5, and nothing needed reconciling afterwards. Without that
-comparison this run reproduces 27 → 43.
+**What went wrong, and how the system caught it.** In r2 two critics — one on A2's part arena, one in the delta panel —
+returned `modality: "viewed"` with three screenshots of a zombie crowd as their observations. It looked like a crowd. A2
+is registered `measured` in `plan.md` on a behavioural `DEFECT_CLASS`, so the one string comparison flagged both and the
+orchestrator **voided them rather than appealing** — no judgment call anywhere in that path. Two fresh critics were
+spawned, the delta panel still closed at 5, nothing needed reconciling. Without that comparison this run reproduces
+27 → 43.
 
-- **Clause 3, collapse, at r6:** two consecutive dry rounds. The run can no longer show that r6 beat r5 and the
-  cheapest gain left costs a round. This is the normal exit, not a win.
-- **The bar was never crossed.** Best crossing panel **2 of 5**, up from 0 of 5. Reported as it stands: 3 of 5 would
-  not be a win either, and calling either "close" is F5. At n = 5 this run can say nothing about a *small* remaining
-  gap and does not try to.
-- **Clause 0 cost a round.** The r4 veto pushed the earliest possible exit from r5 to r6, which is why C4.3's ceiling
-  carries rounds of headroom past the earliest legal stop.
-- **Advisory-clear:** A1, A3, A6, A8. Standing in `r6/report.md` with flip conditions: A4 lighting, A5 readability,
-  A2's behavioural half, and A7 — whose measurable half passed (ours and `bar/` integrate at −16.4 and −16.2 LUFS, no
+- **Clause 3, collapse, at r6:** two consecutive dry rounds. The run can no longer show that r6 beat r5 and the cheapest
+  gain left costs a round. This is the normal exit, not a win. Clause 0 cost a round on the way: the r4 veto pushed the
+  earliest possible exit from r5 to r6, which is why C4.3's ceiling carries headroom past the earliest legal stop.
+- **The bar was never crossed.** Best crossing panel **2 of 5**, up from 0 of 5. Reported as it stands: 3 of 5 would not
+  be a win either, and calling either "close" is F5. At n = 5 this run can say nothing about a *small* remaining gap
+  and does not try to.
+- **Advisory-clear:** A1, A3, A6, A8. Standing in `r6/report.md` with flip conditions: A4 lighting, A5 readability, A2's
+  behavioural half, and A7 — whose measurable half passed (ours and `bar/` integrate at −16.4 and −16.2 LUFS, no
   clipping, no silence over 0.6s) while its audible half is a `human_gate` on loudness-normalised
   `r6/evidence/{A,B}-horde-approach.wav` that nobody has listened to. **A7 is open, not passed.** An agent closing an
   audio part on blind wins is the r2 screenshot error one recipe later.
-- **Spend.** 101 agent-runs against 120 declared, 2.01M output tokens against 2.5M; per round r0 5 · r1 19 · r2 16 ·
-  r3 14 · r4 14 · r5 14 · r6 19, and 0.05 · 0.52 · 0.34 · 0.31 · 0.29 · 0.22 · 0.28M. r1 ran over C4.2's seed — eight
-  parts from nothing — and the target was recalibrated from that delta, never the ceiling. `spend.tsv` column 3 is the
+- **Spend.** 101 agent-runs against 120 declared, 2.01M output tokens against 2.5M; per round r0 5 · r1 19 · r2 16 · r3
+  14 · r4 14 · r5 14 · r6 19, and 0.05 · 0.52 · 0.34 · 0.31 · 0.29 · 0.22 · 0.28M. r1 ran over C4.2's seed — eight parts
+  from nothing — and the target was recalibrated from that delta, never the ceiling. `spend.tsv` column 3 is the
   output-token unit C4.2 fixes; the run record's own total is roughly ten times larger and the two are never added.
 
 ---
@@ -240,9 +239,9 @@ Plan, usage-to-date, invoice history, payment method. Run B is the one that ends
 **Why a split bar.** One product is rarely best at both halves of a UI. Stripe wins "where does my money go", Linear
 wins "how does this feel to operate", and naming both gives each critic an unambiguous target. Rejecting the
 nearest-domain candidate is the move most operators miss: **domain proximity is not the selection criterion, dominance
-at the judged property is.** Both accounts were opened once at round 0 to produce 24 flat captures under
-`$RUN/bar/`, hashed with C3.4's command, then closed for the run — a live dashboard is not a bar (F3), the snapshot
-is. That has a price, paid in §3: nothing on the bar side can be driven again for the rest of the run.
+at the judged property is.** Both accounts were opened once at round 0 to produce 24 flat captures under `$RUN/bar/`,
+hashed with C3.4's command, then closed — a live dashboard is not a bar (F3), the snapshot is. That has a price, paid
+in §3: nothing on the bar side can be driven again for the rest of the run.
 
 ### 2. What the generator emitted
 
@@ -257,19 +256,17 @@ MODALITY: Interactive UI (C5). Dark mode, hover, focus and pressed are outside w
 STOP:     my call. ceiling: +1.8M output tokens (4 rounds at 9 parts, C4.2); 80 agent-runs
 ```
 
-**Launch prompt, 148 words.** The modality phrase is `LAUNCH.md` STEP 2b's **Interactive UI** row. A split *bar* buys
-no second phrase — STEP 4 permits exactly one, and the behavioural row wins because a still cannot find a behavioural
-bug. The still-image halves are registered per part in `plan.md`, which is where that distinction belongs. Paragraphs
-2, 4 and 5 are Run A's verbatim; what changed:
+**Launch prompt, 148 words.** The modality phrase is `LAUNCH.md` STEP 2b's **Interactive UI** row. A split *bar* buys no
+second phrase — STEP 4 permits exactly one, and the behavioural row wins because a still cannot find a behavioural bug.
+The still-image halves are registered per part in `plan.md`, which is where that distinction belongs. Paragraphs 2, 4
+and 5 are Run A's verbatim; what changed:
 
 ```text
 Build our usage-and-billing settings surface, at the level of Stripe's billing pages for
 information design and Linear's settings for interaction craft. Not "good for an internal page".
 …
-Every piece gets checked by a separate fresh subagent that never saw it being built and has no
-stake in it. That critic actually drives it, clicks through it, tries to break it, and checks what
-changed after every single step — it inspects the artifact itself, never a summary of it. It
-should be a genuinely harsh critic.
+That critic actually drives it, clicks through it, tries to break it, and checks what changed
+after every single step — it inspects the artifact itself, never a summary of it.
 …
 Don't stop until it picks ours. Ultracode.
 ```
@@ -290,23 +287,23 @@ Don't stop until it picks ours. Ultracode.
 
 Two registrations decide the whole run.
 
-- **B6 is `interacted`, not visual.** C5's static-visual row cannot settle hover, focus, pressed or dark mode; a PNG
-  of a dark page proves nothing about a token that flips on `:hover`. B6 drives the toggle, drives the hover, and
-  asserts the computed value at each step.
-- **Every `interacted` part is `proxy-biased`,** and this is the price of freezing the bar. The bar half is 24 stills,
-  so no driven comparison against Stripe or Linear exists; those verdicts are honest about the candidate and about
-  r`N` versus r`N−1`, they count in the delta panel, and they can never establish crossing (C2, C5.3). The five
-  `viewed` parts are matched — stills against stills at the same size — and are what made a crossing panel available
-  at all. Motion is not a part here: C5's Motion row needs a `window.__setTime(ms)` hook on both sides and the bar is
-  a PNG, so a motion claim against Linear would be void and none is made. B1's five-second recall task is likewise
-  not a static-visual claim; it sits in `not_probed` pointing at the prose recipe and a human.
+- **B6 is `interacted`, not visual.** C5's static-visual row cannot settle hover, focus, pressed or dark mode; a PNG of
+  a dark page proves nothing about a token that flips on `:hover`. B6 drives the toggle, drives the hover, and asserts
+  the computed value at each step.
+- **Every `interacted` part is `proxy-biased`,** and this is the price of freezing the bar. The bar half is 24 stills, so
+  no driven comparison against Stripe or Linear exists; those verdicts are honest about the candidate and about r`N`
+  versus r`N−1`, they count in the delta panel, and they can never establish crossing (C2, C5.3). The five `viewed`
+  parts are matched — stills against stills at the same size — and are what made a crossing panel available at all.
+  Motion is not a part here: C5's Motion row needs a `window.__setTime(ms)` hook on both sides and the bar is a PNG, so
+  a motion claim against Linear would be void and none is made. B1's five-second recall task is likewise not a
+  static-visual claim; it sits in `not_probed` pointing at the prose recipe and a human.
 
 ### 4. The verdict that found it
 
 Run A carries the one complete verdict; a second full copy would be padding. B6's differs in kind at three keys.
 `parity: "proxy-biased"` with a `human_gate`, for the reason above. `not_probed` names a limit of the modality itself
-rather than an unrun probe: `"whether a dark surface looks right, which no still and no computed value can settle"`.
-And the contrast measurement — legal by C5's static-visual row, `evaluate` for computed contrast — is a candidate-side
+rather than an unrun probe: `"whether a dark surface looks right, which no still and no computed value can settle"`. And
+the contrast measurement — legal by C5's static-visual row, `evaluate` for computed contrast — is a candidate-side
 threshold check with no A/B claim in it, so it lives in `r3/evidence/dark/contrast.json` with its command and is
 summarised in `report.md`, in no verdict at all. The decisive `probe_step`, verbatim out of the record:
 
@@ -318,10 +315,10 @@ pw.evaluate "document.documentElement.dataset.theme='dark';
 // B: rgb(24, 26, 31) at rest and on hover, 12 of 12, and 0 hex literals outside one tokens file
 ```
 
-`largest_gap.gap` to the builder: delete the 9 hex literals, make the token lookup throw on a missing dark value,
-re-run the walk before judging anything visual — surfaces that flip to light on interaction read as a rendering bug,
-so every other dark-mode judgement is downstream of it. That reasoning goes inside `gap` because C1 gives it nowhere
-else to go, and a builder acting on the first clause alone would re-skin the symptom.
+`largest_gap.gap` to the builder: delete the 9 hex literals, make the token lookup throw on a missing dark value, re-run
+the walk before judging anything visual — surfaces that flip to light on interaction read as a rendering bug, so every
+other dark-mode judgement is downstream of it. That reasoning goes inside `gap` because C1 gives it nowhere else to go,
+and a builder acting on the first clause alone would re-skin the symptom.
 
 ### 5. Rounds, and how it ended
 
@@ -335,21 +332,21 @@ else to go, and a builder acting on the first clause alone would re-skin the sym
 
 **The ending, stated as C2 requires.** Clause 4 is not a completion. r3 was *not* dry, so clause 3 never armed; r4 was
 dry and the delta panel picked the previous artifact 4 of 5, which is the regression clause, so the run rolled back to
-`gauntlet-r3` and the re-cut is pending. The cause is legible in the r4 verdicts: the cumulative reference line that
-made the chart argue its case at 1440px made it illegible at 390px, and B3 and B7 both moved against us. Under a rule
-that only ever stopped on "no more gains", r4 would have shipped.
+`gauntlet-r3` and the re-cut is pending. The cause is legible in the r4 verdicts: the cumulative reference line that made
+the chart argue its case at 1440px made it illegible at 390px, and B3 and B7 both moved against us. Under a rule that
+only ever stopped on "no more gains", r4 would have shipped.
 
 **What went wrong, and how the system caught it.** The r1 builder's return said the surface was "built on the design
 system". Critics are structurally forbidden from reading builder returns, and the first action on a conformance part is
-to grep the tree: **14 raw `<input>` elements, 9 hex literals, 3 hardcoded `px` font sizes**. The claim was false
-(F23). That is the normal state of builder self-report, and the mitigation is structural rather than motivational —
-the critic never sees the claim, so it has no claim to anchor on.
+to grep the tree: **14 raw `<input>` elements, 9 hex literals, 3 hardcoded `px` font sizes**. The claim was false (F23).
+That is the normal state of builder self-report, and the mitigation is structural rather than motivational — the critic
+never sees the claim, so it has no claim to anchor on.
 
-**State and spend.** Seven parts are advisory-clear at r3 and shippable; B1 and B3 are not. B3 lost to Stripe's chart
-on every panel it faced and the panels agree why: ours plots current-period consumption with no cumulative reference,
-so the number is legible and the *trajectory* is not — and the one attempt to fix that caused the regression that
-stopped the run. That constraint is now in `r4/report.md`, worth more than the round it cost. 70 agent-runs against
-80, 1.45M output tokens against 1.8M; per round r0 5 · r1 20 · r2 15 · r3 15 · r4 15.
+**State and spend.** Seven parts are advisory-clear at r3 and shippable; B1 and B3 are not. B3 lost to Stripe's chart on
+every panel it faced and the panels agree why: ours plots current-period consumption with no cumulative reference, so
+the number is legible and the *trajectory* is not — and the one attempt to fix that caused the regression that stopped
+the run. That constraint is now in `r4/report.md`, worth more than the round it cost. 70 agent-runs against 80, 1.45M
+output tokens against 1.8M; per round r0 5 · r1 20 · r2 15 · r3 15 · r4 15.
 
 ---
 
