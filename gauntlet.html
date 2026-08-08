@@ -1,4 +1,4 @@
-<title>The Gauntlet — bar picker</title>
+<title>Gauntlet Loop — prompt builder</title>
 <style>
   :root{
     --paper:#E6EBEA; --board:#DCE3E2; --ink:#16232B; --ink-2:#4A5C66; --ink-3:#7C8C94;
@@ -39,24 +39,33 @@
   }
   .wrap{max-width:1180px;margin:0 auto;padding:28px 22px 80px}
 
-  /* masthead */
-  header{border-bottom:2px solid var(--ink);padding-bottom:14px;margin-bottom:6px}
+  header{border-bottom:2px solid var(--ink);padding-bottom:16px}
   .kicker{font-family:var(--mono);font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-3)}
-  h1{font-family:var(--display);font-size:clamp(30px,5vw,50px);line-height:1;margin:.18em 0 .1em;letter-spacing:-.01em;text-wrap:balance}
-  .thesis{font-size:15px;color:var(--ink-2);max-width:62ch;margin:0}
-  .thesis b{color:var(--limit);font-weight:inherit}
+  h1{font-family:var(--display);font-size:clamp(30px,5vw,50px);line-height:1;margin:.18em 0 .12em;letter-spacing:-.01em;text-wrap:balance}
+  .thesis{font-size:16px;color:var(--ink-2);max-width:64ch;margin:0}
+  .thesis b{color:var(--ink);font-weight:inherit}
 
-  .grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,420px);gap:34px;align-items:start;margin-top:26px}
+  /* explainer strip */
+  .explain{display:grid;grid-template-columns:repeat(3,1fr);gap:0;border-bottom:1px solid var(--rule);margin-bottom:6px}
+  @media (max-width:760px){.explain{grid-template-columns:1fr}}
+  .ex{padding:16px 20px 18px;border-right:1px solid var(--rule)}
+  .ex:last-child{border-right:none}
+  .ex h3{font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--limit);margin:0 0 6px;font-weight:400}
+  .ex p{margin:0;font-size:14.5px;color:var(--ink-2)}
+  .ex p b{color:var(--ink);font-weight:600}
+
+  .grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,420px);gap:34px;align-items:start;margin-top:20px}
   @media (max-width:900px){.grid{grid-template-columns:1fr;gap:26px}.rail{position:static !important}}
 
-  /* stations */
   .station{border-top:1px solid var(--rule);padding:20px 0 22px}
   .station:first-child{border-top:none;padding-top:4px}
   .sh{display:flex;align-items:baseline;gap:12px;margin-bottom:4px}
   .num{font-family:var(--mono);font-size:11px;color:var(--limit);letter-spacing:.1em;flex:none;padding-top:2px}
   .sh h2{font-family:var(--display);font-size:20px;margin:0;letter-spacing:-.01em}
-  .note{font-size:14px;color:var(--ink-2);margin:.35em 0 .9em;max-width:64ch}
+  .note{font-size:14.5px;color:var(--ink-2);margin:.35em 0 .9em;max-width:64ch}
   .note em{color:var(--ink);font-style:normal;border-bottom:1px solid var(--limit)}
+  .eg{font-size:14px;color:var(--ink-2);background:var(--field);border-left:3px solid var(--graphite);padding:10px 13px;margin:10px 0 0;max-width:64ch}
+  .eg b{color:var(--ink)}
 
   label.fl{display:block;font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3);margin:14px 0 5px}
   input[type=text],textarea,select{
@@ -66,18 +75,14 @@
   textarea{resize:vertical;min-height:56px;line-height:1.5}
   input:focus,textarea:focus,select:focus,button:focus-visible{outline:2px solid var(--limit);outline-offset:1px}
 
-  .hint{font-family:var(--mono);font-size:11.5px;color:var(--graphite);margin-top:7px;min-height:16px}
+  .hint{font-family:var(--mono);font-size:11.5px;color:var(--graphite);margin-top:7px;min-height:16px;line-height:1.5}
   .hint b{color:var(--limit)}
 
   .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px}
-  .chip{
-    font-family:var(--mono);font-size:11.5px;padding:5px 9px;border:1px solid var(--rule);
-    background:var(--chip);color:var(--ink-2);cursor:pointer
-  }
+  .chip{font-family:var(--mono);font-size:11.5px;padding:5px 9px;border:1px solid var(--rule);background:var(--chip);color:var(--ink-2);cursor:pointer}
   .chip:hover{border-color:var(--limit);color:var(--ink)}
   .chip[aria-pressed="true"]{background:var(--limit);border-color:var(--limit);color:#fff}
 
-  /* gates */
   .gates{display:grid;gap:2px;margin-top:12px;border:1px solid var(--rule);background:var(--rule)}
   .gate{display:flex;gap:10px;align-items:flex-start;background:var(--field);padding:9px 11px;cursor:pointer}
   .gate input{margin:3px 0 0;accent-color:var(--limit);flex:none}
@@ -88,18 +93,13 @@
   .warn strong{color:var(--warn);font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;display:block;margin-bottom:3px}
   .warn.hide{display:none}
 
-  /* output rail */
   .rail{position:sticky;top:22px;border:2px solid var(--ink);background:var(--board);padding:16px}
-  .railhead{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:12px}
+  .railhead{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px}
   .railhead h2{font-family:var(--display);font-size:17px;margin:0}
-  .out{
-    font-family:var(--mono);font-size:12.5px;line-height:1.62;white-space:pre-wrap;
-    background:var(--field);border:1px solid var(--rule);padding:13px;min-height:200px;
-    max-height:44vh;overflow-y:auto;color:var(--ink)
-  }
+  .railsub{font-size:13px;color:var(--ink-2);margin:0 0 11px}
+  .out{font-family:var(--mono);font-size:12.5px;line-height:1.62;white-space:pre-wrap;background:var(--field);border:1px solid var(--rule);padding:13px;min-height:200px;max-height:42vh;overflow-y:auto;color:var(--ink)}
   .out .slot{color:var(--ink-3);border-bottom:1px dotted var(--ink-3)}
 
-  /* the ruler */
   .ruler{margin-top:14px}
   .rulertop{display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3);margin-bottom:5px}
   .count{font-family:var(--mono);font-size:19px;color:var(--ink);font-variant-numeric:tabular-nums;letter-spacing:-.02em}
@@ -110,11 +110,9 @@
   .ticks i:nth-child(5n){border-right-color:var(--rule)}
   .fill{position:absolute;left:0;top:0;bottom:0;background:var(--graphite);opacity:.32;transition:width .22s ease}
   .fill.over{background:var(--limit);opacity:.42}
-  /* the ceiling itself. Lives INSIDE the track — at left:100% it sat 1px past the
-     right edge and overflow:hidden clipped the whole thing away. */
   .redline{position:absolute;top:0;bottom:0;right:0;width:3px;background:var(--limit)}
+  .why{font-size:12.5px;color:var(--ink-3);margin-top:6px;line-height:1.45}
 
-  /* checks */
   .checks{margin-top:16px;border-top:1px solid var(--rule);padding-top:12px}
   .checks h3{font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3);margin:0 0 8px;font-weight:400}
   .ck{display:flex;gap:9px;align-items:flex-start;font-size:13px;color:var(--ink-3);padding:3px 0}
@@ -123,154 +121,177 @@
   .ck.bad .mk{color:var(--limit)}
 
   .actions{display:flex;gap:8px;margin-top:14px}
-  button{
-    font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;
-    padding:10px 14px;border:1px solid var(--ink);background:transparent;color:var(--ink);cursor:pointer
-  }
+  button{font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;padding:10px 14px;border:1px solid var(--ink);background:transparent;color:var(--ink);cursor:pointer}
   button.primary{background:var(--ink);color:var(--paper)}
   button.primary[disabled]{opacity:.32;cursor:not-allowed}
   button:not([disabled]):hover{border-color:var(--limit);color:var(--limit)}
   button.primary:not([disabled]):hover{background:var(--limit);border-color:var(--limit);color:#fff}
 
-  footer{margin-top:44px;border-top:1px solid var(--rule);padding-top:14px;font-size:13.5px;color:var(--ink-2);max-width:70ch}
+  footer{margin-top:44px;border-top:1px solid var(--rule);padding-top:16px;font-size:14.5px;color:var(--ink-2);max-width:70ch}
   footer a{color:var(--graphite)}
-  .lede{font-family:var(--display);font-size:16px;color:var(--ink)}
-
+  footer h3{font-family:var(--display);font-size:17px;color:var(--ink);margin:0 0 6px}
+  footer ol{padding-left:20px;margin:8px 0}
+  footer li{margin-bottom:5px}
   @media (prefers-reduced-motion:reduce){*{transition:none !important}}
 </style>
 
 <div class="wrap">
 <header>
-  <div class="kicker">Gauntlet loop · bar picker</div>
-  <h1>Pick the bar, not the domain.</h1>
-  <p class="thesis">In every blind comparison we ran, the better machinery lost to the better <b>bar</b>. This tool spends your two minutes where it counts, then emits a launch prompt under 150 words.</p>
+  <div class="kicker">Gauntlet loop · prompt builder</div>
+  <h1>Write a better Gauntlet Loop.</h1>
+  <p class="thesis">You've seen the prompt that built a Call of Duty clone. This tool writes you one for whatever <b>you're</b> building — and helps you get the one part right that decides whether it works.</p>
 </header>
+
+<div class="explain">
+  <div class="ex">
+    <h3>What a Gauntlet Loop is</h3>
+    <p>You tell an AI to build something <b>as good as a specific real thing</b>. It splits the work up, and a second AI that didn't build it compares the result against that real thing and says which is better. If yours loses, it keeps working.</p>
+  </div>
+  <div class="ex">
+    <h3>Why most of them fail</h3>
+    <p>Not the wording — <b>the thing you told it to beat</b>. Pick something that's famous but not actually great at the part you care about, and the AI spends hours polishing the wrong thing and still calls it done.</p>
+  </div>
+  <div class="ex">
+    <h3>What you'll get</h3>
+    <p>A prompt of about 150 words to paste into Claude Code. <b>Short on purpose.</b> The more you spell out, the less room the AI has to be clever, and the worse the result gets.</p>
+  </div>
+</div>
 
 <div class="grid">
 <div>
 
   <section class="station">
-    <div class="sh"><span class="num">01</span><h2>Find the axis</h2></div>
-    <p class="note">Read the <em>verb</em>, not the noun. <b>Teach</b> how attention works → Ciechanowski. <b>Visualise</b> how attention works → Transformer Explainer. Same subject, different ceiling. Getting this backwards is how a 4,000-line system lost to a 120-word prompt.</p>
-    <label class="fl" for="goal">Your goal, one sentence</label>
-    <textarea id="goal" placeholder="Build the billing and invoices settings page for our B2B SaaS product."></textarea>
+    <div class="sh"><span class="num">01</span><h2>What are you building?</h2></div>
+    <p class="note">Write it the way you'd say it out loud. One sentence is plenty — don't describe how it should be built, just what it is.</p>
+    <label class="fl" for="goal">In one sentence</label>
+    <textarea id="goal" placeholder="A billing and invoices page for my app"></textarea>
     <div class="hint" id="verbhint"></div>
-    <label class="fl" for="axis">The quality that decides this is…</label>
-    <input type="text" id="axis" placeholder="whether a finance admin trusts it with money">
   </section>
 
   <section class="station">
-    <div class="sh"><span class="num">02</span><h2>Name the bar</h2></div>
-    <p class="note">A specific real artifact that is the ceiling <em>on that axis</em>. Not a category.</p>
+    <div class="sh"><span class="num">02</span><h2>What makes it good?</h2></div>
+    <p class="note">This is the step everyone skips, and it's the one that decides the whole thing. Two products can be about the <em>same subject</em> and still be good in totally different ways.</p>
+    <p class="eg">Say you're making something about the solar system. If the job is <b>teaching kids how orbits work</b>, the thing to beat is a great explainer video. If the job is <b>letting people fly around and explore</b>, it's NASA's 3D solar system site. Same topic. Aim at the wrong one and you build a beautiful thing nobody wanted.</p>
+    <label class="fl" for="axis">Finish this: “What really decides if mine is good is…”</label>
+    <input type="text" id="axis" placeholder="whether someone trusts it with their money">
+  </section>
+
+  <section class="station">
+    <div class="sh"><span class="num">03</span><h2>What are you trying to beat?</h2></div>
+    <p class="note">Name one real, specific thing — the way the original prompt named Call of Duty. Pick something clearly <em>better than you can manage</em>. If you could match it easily, it stops pushing.</p>
+    <p class="note" style="margin-top:-2px">Tap a category to see suggestions, or type your own.</p>
     <div class="chips" id="barchips"></div>
-    <label class="fl" for="bar">Bar</label>
-    <input type="text" id="bar" placeholder="the Stripe Dashboard's billing and invoices surfaces">
-    <label class="fl" for="cat">…so it can't be called “good for a ___”</label>
+    <label class="fl" for="bar">The thing to beat</label>
+    <input type="text" id="bar" placeholder="Stripe's billing dashboard">
+    <label class="fl" for="cat">So nobody can call it “pretty good for a ___”</label>
     <input type="text" id="cat" placeholder="settings page">
     <div class="gates" id="gates">
-      <label class="gate"><input type="checkbox" data-g="ext"><span><b>External.</b> Nobody in the run authored it.</span></label>
-      <label class="gate"><input type="checkbox" data-g="open"><span><b>Openable.</b> I checked just now that a fresh agent can fetch, run or read it. An auth-walled reference produces fabricated verdicts.</span></label>
-      <label class="gate"><input type="checkbox" data-g="named"><span><b>Named.</b> A specific artifact, not “a great dashboard”.</span></label>
-      <label class="gate"><input type="checkbox" data-g="reach"><span><b>Out of reach.</b> One unassisted pass loses to it badly.</span></label>
+      <label class="gate"><input type="checkbox" data-g="named"><span><b>It's one specific thing.</b> “Stripe's billing dashboard”, not “a nice dashboard”.</span></label>
+      <label class="gate"><input type="checkbox" data-g="open"><span><b>The AI can actually see it.</b> Open it yourself right now. If it's behind a login the AI can't reach, it will invent an opinion instead of forming one — that's the most common way these runs go wrong.</span></label>
+      <label class="gate"><input type="checkbox" data-g="reach"><span><b>It's better than you.</b> Honestly out of reach on a first attempt.</span></label>
+      <label class="gate"><input type="checkbox" data-g="ext"><span><b>Somebody else made it.</b> Not your own earlier draft, and not something the AI wrote for you.</span></label>
     </div>
   </section>
 
   <section class="station">
-    <div class="sh"><span class="num">03</span><h2>Pick the modality</h2></div>
-    <p class="note">A screenshot cannot find a behavioural bug. This phrase goes into the prompt verbatim — it's the difference between a critic that checks and one that guesses.</p>
-    <label class="fl" for="mod">Artifact class</label>
+    <div class="sh"><span class="num">04</span><h2>How should it be checked?</h2></div>
+    <p class="note">A screenshot can't tell you a button is broken. Pick what you're making and we'll tell the checker how to actually test it, in words it can follow.</p>
+    <label class="fl" for="mod">What are you making?</label>
     <select id="mod"></select>
     <div class="hint" id="modphrase"></div>
     <div class="warn hide" id="modwarn"></div>
   </section>
 
   <section class="station">
-    <div class="sh"><span class="num">04</span><h2>Name the hard parts</h2></div>
-    <p class="note">Not optional. Every emission we tested without a scope line lost coverage — the fleet builds the invoice table beautifully and skips dunning, proration and the empty state. Name the hard parts; never the architecture.</p>
-    <label class="fl" for="scope">Three to five, comma separated</label>
-    <input type="text" id="scope" placeholder="proration previews, failed payments and dunning, the empty state, non-admin read-only">
+    <div class="sh"><span class="num">05</span><h2>What's the hard part?</h2></div>
+    <p class="note">Left alone, an AI builds the easy, obvious bits beautifully and quietly skips the messy ones — the error message, the empty screen, what happens when a card is declined. Name three or four so it can't.</p>
+    <p class="note" style="margin-top:-4px">Say <em>what</em> has to work, never how to build it. No frameworks, no libraries.</p>
+    <label class="fl" for="scope">Three or four things, separated by commas</label>
+    <input type="text" id="scope" placeholder="failed payments, changing plan mid-month, the screen before any invoices exist">
   </section>
 
 </div>
 
 <aside class="rail">
-  <div class="railhead"><h2>Launch prompt</h2><span class="count" id="count">0</span></div>
+  <div class="railhead"><h2>Your prompt</h2><span class="count" id="count">0</span></div>
+  <p class="railsub">Paste into Claude Code. Say <b>ultracode</b> so it runs many helpers at once.</p>
   <div class="out" id="out"></div>
 
   <div class="ruler">
-    <div class="rulertop"><span>Words</span><span>Ceiling 150</span></div>
+    <div class="rulertop"><span>Words</span><span>Limit 150</span></div>
     <div class="track"><div class="ticks" id="ticks"></div><div class="fill" id="fill"></div><div class="redline"></div></div>
+    <p class="why">Past the red line, prompts start doing worse. You'd be telling the AI what to do instead of where to get to.</p>
   </div>
 
   <div class="checks">
-    <h3>Before you send it</h3>
+    <h3>Ready to send?</h3>
     <div id="checklist"></div>
   </div>
 
   <div class="actions">
     <button class="primary" id="copy" disabled>Copy prompt</button>
-    <button id="demo">Load example</button>
+    <button id="demo">Fill in an example</button>
   </div>
 </aside>
 </div>
 
 <footer>
-  <p class="lede">Why this is four steps and not forty.</p>
-  <p>Across 23 blind judges comparing these prompts against Matt Shumer's original, every decisive difference traced to bar selection or inspection modality. Nothing else reached the emitted prompt, so nothing else changed the outcome. The rest of the system is kept as history at <a href="https://github.com/PARAD111GM/gauntlet-loop-system">the repo</a>.</p>
-  <p>Baseline prompt and method by <a href="https://github.com/mshumer/Claude-of-Duty">Matt Shumer</a>.</p>
+  <h3>Then what?</h3>
+  <ol>
+    <li>Paste the prompt into Claude Code and let it run. It'll spin up helpers, build, check its work, and go again.</li>
+    <li>Expect it to take a while and to cost real money. Decide your limit before you start — this loop has no natural finish, which is the whole idea.</li>
+    <li>It's normal never to actually beat the thing you named. You stop when each new round stops making a real difference. Aiming at something out of reach is what keeps it from stopping early and calling mediocre work done.</li>
+  </ol>
+  <p>The Gauntlet Loop is <a href="https://github.com/mshumer/Claude-of-Duty">Matt Shumer's</a>. This tool just helps you point one at the right target. <a href="https://github.com/PARAD111GM/gauntlet-loop-system">Notes and workings</a>.</p>
 </footer>
 </div>
 
 <script>
 const AXES = {
-  "Teaching / explaining":["Bartosz Ciechanowski","Distill.pub"],
-  "Exploration tool":["Transformer Explainer","Observable notebooks"],
-  "Product UI, dense/tabular":["Stripe Dashboard","Linear"],
-  "Marketing site":["Stripe.com","Vercel.com","Apple product pages"],
-  "Real-time 3D — feel":["Skate 3","Mirror's Edge"],
-  "Real-time 3D — spectacle":["Doom (2016)","Control"],
-  "API ergonomics":["Stripe API","GitHub REST"],
-  "Ledger / money correctness":["Modern Treasury Ledgers"],
-  "Argued prose":["Stratechery","a named New Yorker piece"],
-  "Reference prose / docs":["Stripe Docs","Django docs"],
-  "CLI":["gh","rg","fd"],
-  "Mobile app":["Things 3","Apple's own apps"]
+  "Teaching or explaining":["3Blue1Brown","a Khan Academy lesson"],
+  "Something to play with":["a New York Times interactive graphic","Google Earth"],
+  "App screens with data in them":["Stripe's dashboard","Notion","Linear"],
+  "A landing or marketing page":["Apple's product pages","Stripe.com"],
+  "A game that feels good to control":["Tony Hawk's Pro Skater","Mario Kart"],
+  "A game that looks spectacular":["Call of Duty","Doom (2016)"],
+  "An API developers like using":["Stripe's API","GitHub's API"],
+  "Anything handling money":["Stripe","your bank's statements"],
+  "Writing that argues a point":["a New Yorker feature","The Economist"],
+  "Documentation":["Stripe's docs","MDN"],
+  "A command-line tool":["GitHub's CLI (gh)","git"],
+  "A phone app":["Instagram","Apple's own built-in apps"]
 };
 const MODS = {
-  "Static visual":"views it at the sizes it will actually be seen at and reads the rendered result, not the source",
-  "Interactive UI":"actually drives it, clicks through it, tries to break it, and checks what changed after every single step",
-  "Real-time 3D":"drives it with real input, samples the frame times, and reads the console for the errors the picture never shows",
-  "API / service":"calls it for real and checks every response against the contract",
-  "Data":"recomputes the answers from the spec on inputs the builders never saw",
-  "Performance":"runs it thirty times cold and warm on one machine and reports p50 and p95",
-  "Prose":"hands it to a fresh reader who never saw the intent and diffs what they took away against what it was for",
-  "CLI":"runs every command against both and diffs the output",
-  "Agent / prompt system":"runs a frozen twenty-case eval three times and reports pass@k",
-  "Audio / voice":"reads the transcript, the turn timing and the tool-call trace",
-  "Motion":"steps the timeline frame by frame and compares the sheets",
-  "Mobile":"drives it in the simulator and reads the screen after every step"
+  "A page or screen you look at":"looks at it at the sizes people really use, and judges the finished screen rather than the code",
+  "Something people click through":"actually clicks through it, tries to break it, and checks what changed after every single step",
+  "A game or 3D scene":"plays it with real controls, measures the frame rate, and reads the error log for problems a picture won't show",
+  "An API or backend service":"actually calls it and checks every response",
+  "Something that calculates numbers":"works the answers out again itself, on data the builders never saw",
+  "Something that has to be fast":"runs it thirty times and reports the typical and the worst times",
+  "Writing":"gives it to a fresh reader who wasn't told the point, then checks what that reader actually came away with",
+  "A command-line tool":"runs every command on both and compares the output",
+  "Sound or voice":"reads the written transcript and the timing of each reply",
+  "Animation or motion":"steps through it frame by frame and compares",
+  "A phone app":"drives it in the phone simulator and checks the screen after every step"
 };
 const WARN = {
-  "Audio / voice":["The critic cannot hear","Timbre, prosody and mispronunciation are invisible to it, and no speech-to-text is installed. It gets transcript, turn timing and tool-call trace only — judge the sound yourself, by hand. Never ask an agent to compare recordings."],
-  "Motion":["Needs a time hook","Only judgeable if the build exposes <code>window.__setTime(ms)</code> so frames can be stepped. Without one the comparison is void — ask for the hook, or drop the motion claim."],
-  "Mobile":["The bar half needs you","The simulator covers your side. The thing you're measuring against needs a real-device recording you capture first. Simulator timings are never device timings."]
+  "Sound or voice":["The AI can't hear","It can read what was said and how long each reply took, but not whether a voice sounds good — tone, accent, mispronunciation are all invisible to it. Listen yourself before you trust the result, and never ask it to compare two recordings."],
+  "Animation or motion":["Only works if you can pause it","To compare animation the AI has to freeze it at exact moments, which needs a pause control built in. Without one it's guessing — ask for the control, or leave animation out of what you're judging."],
+  "A phone app":["It can only use the simulator","It can drive a fake phone on the computer, but it can't touch a real one. To compare against a real app, screen-record that app yourself first. And simulator speed is never real phone speed."]
 };
 const VERBS = {
-  teach:"Teaching / explaining", explain:"Teaching / explaining", "walk through":"Teaching / explaining",
-  visualise:"Exploration tool", visualize:"Exploration tool", explore:"Exploration tool", inspect:"Exploration tool",
-  argue:"Argued prose", pitch:"Argued prose", convince:"Argued prose",
-  document:"Reference prose / docs"
+  teach:"Teaching or explaining", explain:"Teaching or explaining", show:"Teaching or explaining",
+  visuali:"Something to play with", explore:"Something to play with",
+  argue:"Writing that argues a point", write:"Writing that argues a point",
+  document:"Documentation"
 };
 
 const $=id=>document.getElementById(id);
 const F={goal:$("goal"),axis:$("axis"),bar:$("bar"),cat:$("cat"),scope:$("scope"),mod:$("mod")};
 let chosenAxis=null;
 
-// modality select
 for(const k in MODS){const o=document.createElement("option");o.value=k;o.textContent=k;F.mod.appendChild(o)}
-F.mod.value="Interactive UI";
-
-// ruler ticks
+F.mod.value="Something people click through";
 for(let i=0;i<30;i++)$("ticks").appendChild(document.createElement("i"));
 
 function renderChips(){
@@ -282,14 +303,13 @@ function renderChips(){
     b.onclick=()=>{
       chosenAxis = chosenAxis===ax?null:ax;
       if(chosenAxis && !F.bar.value.trim()) F.bar.value=AXES[ax][0];
-      if(chosenAxis && !F.axis.value.trim()) F.axis.value=ax.toLowerCase();
       renderChips();update();
     };
     c.appendChild(b);
     if(chosenAxis===ax){
       const s=document.createElement("span");
       s.className="hint";s.style.width="100%";
-      s.innerHTML="Ceiling on this axis: <b>"+AXES[ax].join("</b> · <b>")+"</b>";
+      s.innerHTML="Try: <b>"+AXES[ax].join("</b> or <b>")+"</b>";
       c.appendChild(s);
     }
   }
@@ -299,21 +319,25 @@ function detectVerb(){
   const t=F.goal.value.toLowerCase();
   for(const v in VERBS){
     if(new RegExp("\\b"+v).test(t)){
-      $("verbhint").innerHTML='Verb <b>“'+v+'”</b> → the axis is likely <b>'+VERBS[v]+'</b>, not the subject matter.';
+      $("verbhint").innerHTML='You said <b>“'+v+'”</b> — so aim at something that’s brilliant at <b>'+VERBS[v].toLowerCase()+'</b>, not just something about the same topic.';
       return;
     }
   }
-  $("verbhint").innerHTML = t.trim()? 'No axis verb detected — say it out loud: “the quality that decides this is…”' : "";
+  $("verbhint").innerHTML = t.trim()? "Next: what would make yours good? That answer decides what you aim at." : "";
 }
 
 function build(){
   const g=F.goal.value.trim(), b=F.bar.value.trim(), c=F.cat.value.trim(),
         s=F.scope.value.trim(), p=MODS[F.mod.value];
   const slot=t=>'<span class="slot">'+t+'</span>';
-  // People naturally type "Build a…" / "Write a…". Don't stack a second verb on top of theirs.
   const led=/^(build|write|create|make|design|ship|teach|explain)\b/i.test(g);
-  const G=g? (led? g.charAt(0).toUpperCase()+g.slice(1) : "Build "+g) : "Build "+slot("your goal");
-  const B=b||slot("the bar"), C=c||slot("category"), S=s||slot("the hard parts");
+  // "A billing page" -> "Build a billing page", not "Build A billing page".
+  // Only lowercase an article; a proper noun must keep its capital.
+  const art=/^(a|an|the)\b/i.test(g);
+  const G=g? (led? g.charAt(0).toUpperCase()+g.slice(1)
+              : "Build "+(art? g.charAt(0).toLowerCase()+g.slice(1) : g))
+           : "Build "+slot("what you're building");
+  const B=b||slot("the thing to beat"), C=c||slot("category"), S=s||slot("the hard parts");
   return G+", at the level of "+B+'. Not "good for a '+C+'" — as good as that.\n\n'
     +"It has to cover "+S+", including the states nobody screenshots.\n\n"
     +"Fan out subagents; let them split the work however they see fit. /loop on every piece.\n\n"
@@ -321,19 +345,18 @@ function build(){
     +"Then put ours beside "+B+", unlabelled, and make it pick. If it doesn't, say exactly what gave it away and keep going.\n\n"
     +"Keep going until the gap stops closing. Ultracode.";
 }
-
 function plain(){return build().replace(/<[^>]+>/g,"")}
+function words(){return plain().split(/\s+/).filter(Boolean).length}
+const g=k=>document.querySelector('[data-g="'+k+'"]').checked;
 
 const CHECKS=[
-  ["Under 150 words",()=>words()<=150&&words()>40],
-  ["Bar is named and you opened it",()=>F.bar.value.trim().length>2&&g("named")&&g("open")],
-  ["Bar sits on the axis, not just the domain",()=>F.axis.value.trim().length>3],
-  ["Modality matches the artifact",()=>!!F.mod.value],
-  ["No architecture or library prescribed",()=>!/\b(react|vue|svelte|next\.?js|tailwind|postgres|three\.?js|rust|python)\b/i.test(F.goal.value+" "+F.scope.value)],
-  ["Scope line names the hard parts",()=>F.scope.value.split(",").filter(x=>x.trim()).length>=3]
+  ["Short enough to leave room to think",()=>words()<=150&&words()>40],
+  ["You named one specific thing to beat",()=>F.bar.value.trim().length>2&&g("named")],
+  ["You opened it yourself and the AI can too",()=>g("open")],
+  ["You said what actually makes yours good",()=>F.axis.value.trim().length>3],
+  ["You didn't tell it which tools to use",()=>!/\b(react|vue|svelte|next\.?js|tailwind|postgres|three\.?js|rust|python|node)\b/i.test(F.goal.value+" "+F.scope.value)],
+  ["You named the hard parts",()=>F.scope.value.split(",").filter(x=>x.trim()).length>=3]
 ];
-const g=k=>document.querySelector('[data-g="'+k+'"]').checked;
-function words(){return plain().split(/\s+/).filter(Boolean).length}
 
 function update(){
   detectVerb();
@@ -342,8 +365,7 @@ function update(){
   $("count").textContent=w; $("count").classList.toggle("over",over);
   const f=$("fill"); f.style.width=Math.min(100,(w/150)*100)+"%"; f.classList.toggle("over",over);
 
-  const cl=$("checklist"); cl.innerHTML="";
-  let allOk=true;
+  const cl=$("checklist"); cl.innerHTML=""; let allOk=true;
   CHECKS.forEach(([label,fn])=>{
     let ok=false; try{ok=fn()}catch(e){ok=false}
     if(!ok) allOk=false;
@@ -352,13 +374,12 @@ function update(){
     d.innerHTML='<span class="mk">'+(ok?"✓":"✗")+"</span><span>"+label+"</span>";
     cl.appendChild(d);
   });
-  const gatesOk=["ext","open","named","reach"].every(g);
-  $("copy").disabled=!(allOk&&gatesOk);
+  $("copy").disabled=!(allOk&&["ext","open","named","reach"].every(g));
 
   const w2=WARN[F.mod.value], box=$("modwarn");
   if(w2){box.classList.remove("hide");box.innerHTML="<strong>"+w2[0]+"</strong>"+w2[1]}
   else box.classList.add("hide");
-  $("modphrase").textContent="…that critic "+MODS[F.mod.value];
+  $("modphrase").textContent="The prompt will say: that checker "+MODS[F.mod.value]+".";
 }
 
 $("copy").onclick=async()=>{
@@ -367,11 +388,11 @@ $("copy").onclick=async()=>{
   catch(e){$("copy").textContent="Press ⌘C";}
 };
 $("demo").onclick=()=>{
-  F.goal.value="Build a third-person skateboarding game that runs in the browser";
-  F.axis.value="whether the board feels like a board";
-  F.bar.value="Skate 3"; F.cat.value="browser game";
-  F.scope.value="pop and catch timing, camera weight through a turn, bail and respawn";
-  F.mod.value="Real-time 3D"; chosenAxis="Real-time 3D — feel";
+  F.goal.value="A third-person skateboarding game that runs in the browser";
+  F.axis.value="whether the board feels right to control";
+  F.bar.value="Tony Hawk's Pro Skater"; F.cat.value="browser game";
+  F.scope.value="landing tricks, camera through a turn, falling and restarting";
+  F.mod.value="A game or 3D scene"; chosenAxis="A game that feels good to control";
   document.querySelectorAll('[data-g]').forEach(x=>x.checked=true);
   renderChips();update();
 };
