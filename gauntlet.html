@@ -1,0 +1,383 @@
+<title>The Gauntlet — bar picker</title>
+<style>
+  :root{
+    --paper:#E6EBEA; --board:#DCE3E2; --ink:#16232B; --ink-2:#4A5C66; --ink-3:#7C8C94;
+    --rule:#B9C6C6; --rule-2:#CBD5D4;
+    --limit:#C8392B; --graphite:#3E6E8E; --pass:#3F7A4E; --warn:#9A6410;
+    --field:#F4F7F6; --chip:#D7E0DF; --shadow:0 1px 0 rgba(22,35,43,.08);
+    --display:"Superclarendon","Bodoni 72","Playfair Display",Georgia,serif;
+    --prose:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+    --mono:"SF Mono",Menlo,Monaco,"Cascadia Mono","Roboto Mono",monospace;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{
+      --paper:#0E1518; --board:#131D21; --ink:#DDE6E5; --ink-2:#9DAFB4; --ink-3:#6B7F86;
+      --rule:#26343A; --rule-2:#1D292E;
+      --limit:#E4614C; --graphite:#6FA3C0; --pass:#6FAE7C; --warn:#D19A47;
+      --field:#0A1114; --chip:#1B272C; --shadow:0 1px 0 rgba(0,0,0,.4);
+    }
+  }
+  :root[data-theme="dark"]{
+    --paper:#0E1518; --board:#131D21; --ink:#DDE6E5; --ink-2:#9DAFB4; --ink-3:#6B7F86;
+    --rule:#26343A; --rule-2:#1D292E;
+    --limit:#E4614C; --graphite:#6FA3C0; --pass:#6FAE7C; --warn:#D19A47;
+    --field:#0A1114; --chip:#1B272C; --shadow:0 1px 0 rgba(0,0,0,.4);
+  }
+  :root[data-theme="light"]{
+    --paper:#E6EBEA; --board:#DCE3E2; --ink:#16232B; --ink-2:#4A5C66; --ink-3:#7C8C94;
+    --rule:#B9C6C6; --rule-2:#CBD5D4;
+    --limit:#C8392B; --graphite:#3E6E8E; --pass:#3F7A4E; --warn:#9A6410;
+    --field:#F4F7F6; --chip:#D7E0DF; --shadow:0 1px 0 rgba(22,35,43,.08);
+  }
+
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--paper); color:var(--ink);
+    font-family:var(--prose); font-size:16px; line-height:1.55;
+    background-image:linear-gradient(var(--rule-2) 1px,transparent 1px),linear-gradient(90deg,var(--rule-2) 1px,transparent 1px);
+    background-size:28px 28px; background-position:-1px -1px;
+  }
+  .wrap{max-width:1180px;margin:0 auto;padding:28px 22px 80px}
+
+  /* masthead */
+  header{border-bottom:2px solid var(--ink);padding-bottom:14px;margin-bottom:6px}
+  .kicker{font-family:var(--mono);font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-3)}
+  h1{font-family:var(--display);font-size:clamp(30px,5vw,50px);line-height:1;margin:.18em 0 .1em;letter-spacing:-.01em;text-wrap:balance}
+  .thesis{font-size:15px;color:var(--ink-2);max-width:62ch;margin:0}
+  .thesis b{color:var(--limit);font-weight:inherit}
+
+  .grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,420px);gap:34px;align-items:start;margin-top:26px}
+  @media (max-width:900px){.grid{grid-template-columns:1fr;gap:26px}.rail{position:static !important}}
+
+  /* stations */
+  .station{border-top:1px solid var(--rule);padding:20px 0 22px}
+  .station:first-child{border-top:none;padding-top:4px}
+  .sh{display:flex;align-items:baseline;gap:12px;margin-bottom:4px}
+  .num{font-family:var(--mono);font-size:11px;color:var(--limit);letter-spacing:.1em;flex:none;padding-top:2px}
+  .sh h2{font-family:var(--display);font-size:20px;margin:0;letter-spacing:-.01em}
+  .note{font-size:14px;color:var(--ink-2);margin:.35em 0 .9em;max-width:64ch}
+  .note em{color:var(--ink);font-style:normal;border-bottom:1px solid var(--limit)}
+
+  label.fl{display:block;font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3);margin:14px 0 5px}
+  input[type=text],textarea,select{
+    width:100%;background:var(--field);color:var(--ink);border:1px solid var(--rule);
+    font-family:var(--mono);font-size:13px;padding:9px 10px;border-radius:0;box-shadow:var(--shadow)
+  }
+  textarea{resize:vertical;min-height:56px;line-height:1.5}
+  input:focus,textarea:focus,select:focus,button:focus-visible{outline:2px solid var(--limit);outline-offset:1px}
+
+  .hint{font-family:var(--mono);font-size:11.5px;color:var(--graphite);margin-top:7px;min-height:16px}
+  .hint b{color:var(--limit)}
+
+  .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px}
+  .chip{
+    font-family:var(--mono);font-size:11.5px;padding:5px 9px;border:1px solid var(--rule);
+    background:var(--chip);color:var(--ink-2);cursor:pointer
+  }
+  .chip:hover{border-color:var(--limit);color:var(--ink)}
+  .chip[aria-pressed="true"]{background:var(--limit);border-color:var(--limit);color:#fff}
+
+  /* gates */
+  .gates{display:grid;gap:2px;margin-top:12px;border:1px solid var(--rule);background:var(--rule)}
+  .gate{display:flex;gap:10px;align-items:flex-start;background:var(--field);padding:9px 11px;cursor:pointer}
+  .gate input{margin:3px 0 0;accent-color:var(--limit);flex:none}
+  .gate span{font-size:13.5px;color:var(--ink-2)}
+  .gate span b{color:var(--ink);font-weight:600}
+
+  .warn{border-left:3px solid var(--warn);background:var(--field);padding:10px 12px;margin-top:11px;font-size:13.5px;color:var(--ink-2)}
+  .warn strong{color:var(--warn);font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;display:block;margin-bottom:3px}
+  .warn.hide{display:none}
+
+  /* output rail */
+  .rail{position:sticky;top:22px;border:2px solid var(--ink);background:var(--board);padding:16px}
+  .railhead{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:12px}
+  .railhead h2{font-family:var(--display);font-size:17px;margin:0}
+  .out{
+    font-family:var(--mono);font-size:12.5px;line-height:1.62;white-space:pre-wrap;
+    background:var(--field);border:1px solid var(--rule);padding:13px;min-height:200px;
+    max-height:44vh;overflow-y:auto;color:var(--ink)
+  }
+  .out .slot{color:var(--ink-3);border-bottom:1px dotted var(--ink-3)}
+
+  /* the ruler */
+  .ruler{margin-top:14px}
+  .rulertop{display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3);margin-bottom:5px}
+  .count{font-family:var(--mono);font-size:19px;color:var(--ink);font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+  .count.over{color:var(--limit)}
+  .track{position:relative;height:30px;border:1px solid var(--rule);background:var(--field);overflow:hidden}
+  .ticks{position:absolute;inset:0;display:flex}
+  .ticks i{flex:1;border-right:1px solid var(--rule-2)}
+  .ticks i:nth-child(5n){border-right-color:var(--rule)}
+  .fill{position:absolute;left:0;top:0;bottom:0;background:var(--graphite);opacity:.32;transition:width .22s ease}
+  .fill.over{background:var(--limit);opacity:.42}
+  /* the ceiling itself. Lives INSIDE the track — at left:100% it sat 1px past the
+     right edge and overflow:hidden clipped the whole thing away. */
+  .redline{position:absolute;top:0;bottom:0;right:0;width:3px;background:var(--limit)}
+
+  /* checks */
+  .checks{margin-top:16px;border-top:1px solid var(--rule);padding-top:12px}
+  .checks h3{font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3);margin:0 0 8px;font-weight:400}
+  .ck{display:flex;gap:9px;align-items:flex-start;font-size:13px;color:var(--ink-3);padding:3px 0}
+  .ck .mk{font-family:var(--mono);font-size:12px;flex:none;width:12px;color:var(--ink-3)}
+  .ck.ok{color:var(--ink-2)} .ck.ok .mk{color:var(--pass)}
+  .ck.bad .mk{color:var(--limit)}
+
+  .actions{display:flex;gap:8px;margin-top:14px}
+  button{
+    font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;
+    padding:10px 14px;border:1px solid var(--ink);background:transparent;color:var(--ink);cursor:pointer
+  }
+  button.primary{background:var(--ink);color:var(--paper)}
+  button.primary[disabled]{opacity:.32;cursor:not-allowed}
+  button:not([disabled]):hover{border-color:var(--limit);color:var(--limit)}
+  button.primary:not([disabled]):hover{background:var(--limit);border-color:var(--limit);color:#fff}
+
+  footer{margin-top:44px;border-top:1px solid var(--rule);padding-top:14px;font-size:13.5px;color:var(--ink-2);max-width:70ch}
+  footer a{color:var(--graphite)}
+  .lede{font-family:var(--display);font-size:16px;color:var(--ink)}
+
+  @media (prefers-reduced-motion:reduce){*{transition:none !important}}
+</style>
+
+<div class="wrap">
+<header>
+  <div class="kicker">Gauntlet loop · bar picker</div>
+  <h1>Pick the bar, not the domain.</h1>
+  <p class="thesis">In every blind comparison we ran, the better machinery lost to the better <b>bar</b>. This tool spends your two minutes where it counts, then emits a launch prompt under 150 words.</p>
+</header>
+
+<div class="grid">
+<div>
+
+  <section class="station">
+    <div class="sh"><span class="num">01</span><h2>Find the axis</h2></div>
+    <p class="note">Read the <em>verb</em>, not the noun. <b>Teach</b> how attention works → Ciechanowski. <b>Visualise</b> how attention works → Transformer Explainer. Same subject, different ceiling. Getting this backwards is how a 4,000-line system lost to a 120-word prompt.</p>
+    <label class="fl" for="goal">Your goal, one sentence</label>
+    <textarea id="goal" placeholder="Build the billing and invoices settings page for our B2B SaaS product."></textarea>
+    <div class="hint" id="verbhint"></div>
+    <label class="fl" for="axis">The quality that decides this is…</label>
+    <input type="text" id="axis" placeholder="whether a finance admin trusts it with money">
+  </section>
+
+  <section class="station">
+    <div class="sh"><span class="num">02</span><h2>Name the bar</h2></div>
+    <p class="note">A specific real artifact that is the ceiling <em>on that axis</em>. Not a category.</p>
+    <div class="chips" id="barchips"></div>
+    <label class="fl" for="bar">Bar</label>
+    <input type="text" id="bar" placeholder="the Stripe Dashboard's billing and invoices surfaces">
+    <label class="fl" for="cat">…so it can't be called “good for a ___”</label>
+    <input type="text" id="cat" placeholder="settings page">
+    <div class="gates" id="gates">
+      <label class="gate"><input type="checkbox" data-g="ext"><span><b>External.</b> Nobody in the run authored it.</span></label>
+      <label class="gate"><input type="checkbox" data-g="open"><span><b>Openable.</b> I checked just now that a fresh agent can fetch, run or read it. An auth-walled reference produces fabricated verdicts.</span></label>
+      <label class="gate"><input type="checkbox" data-g="named"><span><b>Named.</b> A specific artifact, not “a great dashboard”.</span></label>
+      <label class="gate"><input type="checkbox" data-g="reach"><span><b>Out of reach.</b> One unassisted pass loses to it badly.</span></label>
+    </div>
+  </section>
+
+  <section class="station">
+    <div class="sh"><span class="num">03</span><h2>Pick the modality</h2></div>
+    <p class="note">A screenshot cannot find a behavioural bug. This phrase goes into the prompt verbatim — it's the difference between a critic that checks and one that guesses.</p>
+    <label class="fl" for="mod">Artifact class</label>
+    <select id="mod"></select>
+    <div class="hint" id="modphrase"></div>
+    <div class="warn hide" id="modwarn"></div>
+  </section>
+
+  <section class="station">
+    <div class="sh"><span class="num">04</span><h2>Name the hard parts</h2></div>
+    <p class="note">Not optional. Every emission we tested without a scope line lost coverage — the fleet builds the invoice table beautifully and skips dunning, proration and the empty state. Name the hard parts; never the architecture.</p>
+    <label class="fl" for="scope">Three to five, comma separated</label>
+    <input type="text" id="scope" placeholder="proration previews, failed payments and dunning, the empty state, non-admin read-only">
+  </section>
+
+</div>
+
+<aside class="rail">
+  <div class="railhead"><h2>Launch prompt</h2><span class="count" id="count">0</span></div>
+  <div class="out" id="out"></div>
+
+  <div class="ruler">
+    <div class="rulertop"><span>Words</span><span>Ceiling 150</span></div>
+    <div class="track"><div class="ticks" id="ticks"></div><div class="fill" id="fill"></div><div class="redline"></div></div>
+  </div>
+
+  <div class="checks">
+    <h3>Before you send it</h3>
+    <div id="checklist"></div>
+  </div>
+
+  <div class="actions">
+    <button class="primary" id="copy" disabled>Copy prompt</button>
+    <button id="demo">Load example</button>
+  </div>
+</aside>
+</div>
+
+<footer>
+  <p class="lede">Why this is four steps and not forty.</p>
+  <p>Across 23 blind judges comparing these prompts against Matt Shumer's original, every decisive difference traced to bar selection or inspection modality. Nothing else reached the emitted prompt, so nothing else changed the outcome. The rest of the system is kept as history at <a href="https://github.com/PARAD111GM/gauntlet-loop-system">the repo</a>.</p>
+  <p>Baseline prompt and method by <a href="https://github.com/mshumer/Claude-of-Duty">Matt Shumer</a>.</p>
+</footer>
+</div>
+
+<script>
+const AXES = {
+  "Teaching / explaining":["Bartosz Ciechanowski","Distill.pub"],
+  "Exploration tool":["Transformer Explainer","Observable notebooks"],
+  "Product UI, dense/tabular":["Stripe Dashboard","Linear"],
+  "Marketing site":["Stripe.com","Vercel.com","Apple product pages"],
+  "Real-time 3D — feel":["Skate 3","Mirror's Edge"],
+  "Real-time 3D — spectacle":["Doom (2016)","Control"],
+  "API ergonomics":["Stripe API","GitHub REST"],
+  "Ledger / money correctness":["Modern Treasury Ledgers"],
+  "Argued prose":["Stratechery","a named New Yorker piece"],
+  "Reference prose / docs":["Stripe Docs","Django docs"],
+  "CLI":["gh","rg","fd"],
+  "Mobile app":["Things 3","Apple's own apps"]
+};
+const MODS = {
+  "Static visual":"views it at the sizes it will actually be seen at and reads the rendered result, not the source",
+  "Interactive UI":"actually drives it, clicks through it, tries to break it, and checks what changed after every single step",
+  "Real-time 3D":"drives it with real input, samples the frame times, and reads the console for the errors the picture never shows",
+  "API / service":"calls it for real and checks every response against the contract",
+  "Data":"recomputes the answers from the spec on inputs the builders never saw",
+  "Performance":"runs it thirty times cold and warm on one machine and reports p50 and p95",
+  "Prose":"hands it to a fresh reader who never saw the intent and diffs what they took away against what it was for",
+  "CLI":"runs every command against both and diffs the output",
+  "Agent / prompt system":"runs a frozen twenty-case eval three times and reports pass@k",
+  "Audio / voice":"reads the transcript, the turn timing and the tool-call trace",
+  "Motion":"steps the timeline frame by frame and compares the sheets",
+  "Mobile":"drives it in the simulator and reads the screen after every step"
+};
+const WARN = {
+  "Audio / voice":["The critic cannot hear","Timbre, prosody and mispronunciation are invisible to it, and no speech-to-text is installed. It gets transcript, turn timing and tool-call trace only — judge the sound yourself, by hand. Never ask an agent to compare recordings."],
+  "Motion":["Needs a time hook","Only judgeable if the build exposes <code>window.__setTime(ms)</code> so frames can be stepped. Without one the comparison is void — ask for the hook, or drop the motion claim."],
+  "Mobile":["The bar half needs you","The simulator covers your side. The thing you're measuring against needs a real-device recording you capture first. Simulator timings are never device timings."]
+};
+const VERBS = {
+  teach:"Teaching / explaining", explain:"Teaching / explaining", "walk through":"Teaching / explaining",
+  visualise:"Exploration tool", visualize:"Exploration tool", explore:"Exploration tool", inspect:"Exploration tool",
+  argue:"Argued prose", pitch:"Argued prose", convince:"Argued prose",
+  document:"Reference prose / docs"
+};
+
+const $=id=>document.getElementById(id);
+const F={goal:$("goal"),axis:$("axis"),bar:$("bar"),cat:$("cat"),scope:$("scope"),mod:$("mod")};
+let chosenAxis=null;
+
+// modality select
+for(const k in MODS){const o=document.createElement("option");o.value=k;o.textContent=k;F.mod.appendChild(o)}
+F.mod.value="Interactive UI";
+
+// ruler ticks
+for(let i=0;i<30;i++)$("ticks").appendChild(document.createElement("i"));
+
+function renderChips(){
+  const c=$("barchips");c.innerHTML="";
+  for(const ax in AXES){
+    const b=document.createElement("button");
+    b.className="chip";b.type="button";b.textContent=ax;
+    b.setAttribute("aria-pressed",chosenAxis===ax);
+    b.onclick=()=>{
+      chosenAxis = chosenAxis===ax?null:ax;
+      if(chosenAxis && !F.bar.value.trim()) F.bar.value=AXES[ax][0];
+      if(chosenAxis && !F.axis.value.trim()) F.axis.value=ax.toLowerCase();
+      renderChips();update();
+    };
+    c.appendChild(b);
+    if(chosenAxis===ax){
+      const s=document.createElement("span");
+      s.className="hint";s.style.width="100%";
+      s.innerHTML="Ceiling on this axis: <b>"+AXES[ax].join("</b> · <b>")+"</b>";
+      c.appendChild(s);
+    }
+  }
+}
+
+function detectVerb(){
+  const t=F.goal.value.toLowerCase();
+  for(const v in VERBS){
+    if(new RegExp("\\b"+v).test(t)){
+      $("verbhint").innerHTML='Verb <b>“'+v+'”</b> → the axis is likely <b>'+VERBS[v]+'</b>, not the subject matter.';
+      return;
+    }
+  }
+  $("verbhint").innerHTML = t.trim()? 'No axis verb detected — say it out loud: “the quality that decides this is…”' : "";
+}
+
+function build(){
+  const g=F.goal.value.trim(), b=F.bar.value.trim(), c=F.cat.value.trim(),
+        s=F.scope.value.trim(), p=MODS[F.mod.value];
+  const slot=t=>'<span class="slot">'+t+'</span>';
+  // People naturally type "Build a…" / "Write a…". Don't stack a second verb on top of theirs.
+  const led=/^(build|write|create|make|design|ship|teach|explain)\b/i.test(g);
+  const G=g? (led? g.charAt(0).toUpperCase()+g.slice(1) : "Build "+g) : "Build "+slot("your goal");
+  const B=b||slot("the bar"), C=c||slot("category"), S=s||slot("the hard parts");
+  return G+", at the level of "+B+'. Not "good for a '+C+'" — as good as that.\n\n'
+    +"It has to cover "+S+", including the states nobody screenshots.\n\n"
+    +"Fan out subagents; let them split the work however they see fit. /loop on every piece.\n\n"
+    +"Every piece is checked by a fresh subagent that never saw it built and has no stake in it. That critic "+p+" — the artifact itself, never a summary. Be a harsh critic.\n\n"
+    +"Then put ours beside "+B+", unlabelled, and make it pick. If it doesn't, say exactly what gave it away and keep going.\n\n"
+    +"Keep going until the gap stops closing. Ultracode.";
+}
+
+function plain(){return build().replace(/<[^>]+>/g,"")}
+
+const CHECKS=[
+  ["Under 150 words",()=>words()<=150&&words()>40],
+  ["Bar is named and you opened it",()=>F.bar.value.trim().length>2&&g("named")&&g("open")],
+  ["Bar sits on the axis, not just the domain",()=>F.axis.value.trim().length>3],
+  ["Modality matches the artifact",()=>!!F.mod.value],
+  ["No architecture or library prescribed",()=>!/\b(react|vue|svelte|next\.?js|tailwind|postgres|three\.?js|rust|python)\b/i.test(F.goal.value+" "+F.scope.value)],
+  ["Scope line names the hard parts",()=>F.scope.value.split(",").filter(x=>x.trim()).length>=3]
+];
+const g=k=>document.querySelector('[data-g="'+k+'"]').checked;
+function words(){return plain().split(/\s+/).filter(Boolean).length}
+
+function update(){
+  detectVerb();
+  $("out").innerHTML=build();
+  const w=words(), over=w>150;
+  $("count").textContent=w; $("count").classList.toggle("over",over);
+  const f=$("fill"); f.style.width=Math.min(100,(w/150)*100)+"%"; f.classList.toggle("over",over);
+
+  const cl=$("checklist"); cl.innerHTML="";
+  let allOk=true;
+  CHECKS.forEach(([label,fn])=>{
+    let ok=false; try{ok=fn()}catch(e){ok=false}
+    if(!ok) allOk=false;
+    const d=document.createElement("div");
+    d.className="ck "+(ok?"ok":"bad");
+    d.innerHTML='<span class="mk">'+(ok?"✓":"✗")+"</span><span>"+label+"</span>";
+    cl.appendChild(d);
+  });
+  const gatesOk=["ext","open","named","reach"].every(g);
+  $("copy").disabled=!(allOk&&gatesOk);
+
+  const w2=WARN[F.mod.value], box=$("modwarn");
+  if(w2){box.classList.remove("hide");box.innerHTML="<strong>"+w2[0]+"</strong>"+w2[1]}
+  else box.classList.add("hide");
+  $("modphrase").textContent="…that critic "+MODS[F.mod.value];
+}
+
+$("copy").onclick=async()=>{
+  try{await navigator.clipboard.writeText(plain());$("copy").textContent="Copied";
+    setTimeout(()=>$("copy").textContent="Copy prompt",1400)}
+  catch(e){$("copy").textContent="Press ⌘C";}
+};
+$("demo").onclick=()=>{
+  F.goal.value="Build a third-person skateboarding game that runs in the browser";
+  F.axis.value="whether the board feels like a board";
+  F.bar.value="Skate 3"; F.cat.value="browser game";
+  F.scope.value="pop and catch timing, camera weight through a turn, bail and respawn";
+  F.mod.value="Real-time 3D"; chosenAxis="Real-time 3D — feel";
+  document.querySelectorAll('[data-g]').forEach(x=>x.checked=true);
+  renderChips();update();
+};
+
+document.querySelectorAll("input,textarea,select").forEach(el=>{
+  el.addEventListener("input",update); el.addEventListener("change",update);
+});
+renderChips();update();
+</script>

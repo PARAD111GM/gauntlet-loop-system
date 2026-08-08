@@ -3,6 +3,11 @@
 Goal in, launch prompt out. Everything else in this repo is history; this is the part that earned
 its keep. Four steps, about two minutes.
 
+**Prefer to click?** `gauntlet.html` in this repo is the same four steps as a working tool: it
+detects the axis verb as you type, filters bars by axis, blocks the emit until all four bar gates
+are checked, and shows a live word count against the 150 ceiling. The skeleton is 128 words, so a
+real goal lands around 147.
+
 The loop you are writing a prompt for: agents build, a **fresh** agent judges the artifact blind
 against a **named real thing**, you repeat until it wins. The prompt is short on purpose — the
 model's judgment is the asset, and every sentence you add spends it.
@@ -104,15 +109,14 @@ Build {GOAL}, at the level of {BAR}. Not "good for a {CATEGORY}" — as good as 
 
 It has to cover {THE 3-5 HARD PARTS}, including the states nobody screenshots.
 
-Fan out subagents and let them split the work however they see fit; each owns its piece
-until it holds up. /loop on every piece.
+Fan out subagents; let them split the work however they see fit. /loop on every piece.
 
-Every piece gets checked by a separate fresh subagent that never saw it being built and
-has no stake in it. That critic {MODALITY PHRASE} — the artifact itself, never a summary
-of it. Be a genuinely harsh critic.
+Every piece is checked by a fresh subagent that never saw it built and has no stake in
+it. That critic {MODALITY PHRASE} — the artifact itself, never a summary. Be a harsh
+critic.
 
-Then put ours next to {BAR}, unlabelled, and make it pick. If it doesn't pick ours, say
-exactly what gave it away and keep going.
+Then put ours beside {BAR}, unlabelled, and make it pick. If it doesn't, say exactly
+what gave it away and keep going.
 
 Keep going until the gap stops closing. Ultracode.
 ```
