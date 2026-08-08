@@ -1,0 +1,2586 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Attention — how one transformer head decides what to look at</title>
+<meta name="description" content="An interactive, from-first-principles explanation of a single attention head: dot products, queries, keys, values, scaling, softmax, masking, and a head you can build by hand.">
+<style>
+/* ============================================================
+   Design tokens
+   ============================================================ */
+:root{
+  --serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Charter", Georgia, "Times New Roman", serif;
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+
+  --bg:        #f7f5f1;
+  --bg-figure: #fffefc;
+  --bg-sunken: #f0ede7;
+  --ink:       #191817;
+  --ink-soft:  #4a4844;
+  --ink-mute:  #85817a;
+  --rule:      #dedad2;
+  --rule-soft: #e9e5dd;
+
+  --query:  #c2542a;
+  --key:    #256d9e;
+  --value:  #2c7d55;
+  --weight: #7a4fb0;
+  --neutral:#8d8880;
+
+  --query-wash:  rgba(194, 84, 42, .13);
+  --key-wash:    rgba(37, 109, 158, .13);
+  --value-wash:  rgba(44, 125, 85, .13);
+  --weight-wash: rgba(122, 79, 176, .13);
+
+  --grid:      #e4e0d8;
+  --grid-bold: #cfc9be;
+  --shadow: 0 1px 2px rgba(30,25,15,.05), 0 6px 18px -10px rgba(30,25,15,.22);
+  --focus: #1f6feb;
+
+  --prose: 37rem;
+  --wide: 47rem;
+}
+:root[data-theme="dark"]{
+  --bg:        #14161a;
+  --bg-figure: #1b1e24;
+  --bg-sunken: #23272f;
+  --ink:       #e7e4de;
+  --ink-soft:  #bdb9b1;
+  --ink-mute:  #8e8a83;
+  --rule:      #333841;
+  --rule-soft: #282d35;
+
+  --query:  #f0865a;
+  --key:    #64ade4;
+  --value:  #58bb8b;
+  --weight: #b391e8;
+  --neutral:#8e8a83;
+
+  --query-wash:  rgba(240, 134, 90, .17);
+  --key-wash:    rgba(100, 173, 228, .17);
+  --value-wash:  rgba(88, 187, 139, .17);
+  --weight-wash: rgba(179, 145, 232, .17);
+
+  --grid:      #2a2f37;
+  --grid-bold: #3b424c;
+  --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 22px -12px rgba(0,0,0,.7);
+  --focus: #6aa6ff;
+}
+
+*,*::before,*::after{ box-sizing:border-box; }
+html{ -webkit-text-size-adjust:100%; }
+body{
+  margin:0;
+  background:var(--bg);
+  color:var(--ink);
+  font-family:var(--serif);
+  font-size:18.5px;
+  line-height:1.66;
+  font-kerning:normal;
+  text-rendering:optimizeLegibility;
+  -webkit-font-smoothing:antialiased;
+  overflow-x:hidden;
+}
+@media (max-width:640px){ body{ font-size:17.5px; line-height:1.62; } }
+
+/* ============================================================
+   Layout
+   ============================================================ */
+.wrap{ width:min(var(--wide), calc(100% - 2.2rem)); margin:0 auto; }
+.col{ width:min(var(--prose), 100%); margin-inline:auto; }
+
+header.masthead{ padding:min(16vh,7.5rem) 0 1rem; }
+header.masthead .col{ text-align:left; }
+h1{
+  font-size:clamp(2.5rem, 8.5vw, 4.15rem);
+  line-height:1.02;
+  letter-spacing:-.028em;
+  margin:0 0 .55rem;
+  font-weight:600;
+}
+.deck{
+  font-size:clamp(1.06rem,2.6vw,1.2rem);
+  color:var(--ink-soft);
+  line-height:1.5;
+  margin:0 0 1.6rem;
+  max-width:30ch;
+  text-wrap:balance;
+}
+.byline{
+  font-family:var(--sans);
+  font-size:.775rem;
+  letter-spacing:.085em;
+  text-transform:uppercase;
+  color:var(--ink-mute);
+  border-top:1px solid var(--rule);
+  padding-top:.85rem;
+  display:flex; gap:1rem; flex-wrap:wrap; align-items:baseline;
+}
+
+h2{
+  font-size:clamp(1.42rem,3.6vw,1.72rem);
+  line-height:1.22;
+  letter-spacing:-.014em;
+  font-weight:600;
+  margin:3.9rem 0 1.1rem;
+  text-wrap:balance;
+}
+h2 .num{
+  font-family:var(--sans);
+  font-size:.66em;
+  font-weight:600;
+  color:var(--ink-mute);
+  letter-spacing:.02em;
+  margin-right:.6em;
+  font-variant-numeric:tabular-nums;
+}
+h3{
+  font-family:var(--sans);
+  font-size:.83rem; font-weight:650;
+  letter-spacing:.075em; text-transform:uppercase;
+  color:var(--ink-mute);
+  margin:2.4rem 0 .8rem;
+}
+p{ margin:0 0 1.15rem; }
+p + p{ text-indent:0; }
+a{ color:inherit; text-decoration-color:var(--rule); text-underline-offset:.16em; }
+a:hover{ text-decoration-color:currentColor; }
+
+/* Prose accents */
+em{ font-style:italic; }
+strong{ font-weight:650; }
+.term{ font-style:italic; font-weight:600; }
+.q{ color:var(--query); font-weight:650; }
+.k{ color:var(--key); font-weight:650; }
+.v{ color:var(--value); font-weight:650; }
+.w{ color:var(--weight); font-weight:650; }
+code, .tok{
+  font-family:var(--mono);
+  font-size:.855em;
+  background:var(--bg-sunken);
+  border-radius:4px;
+  padding:.08em .34em;
+}
+.word{ font-family:var(--mono); font-size:.88em; letter-spacing:-.01em; }
+
+blockquote.aside{
+  margin:1.9rem 0;
+  padding:.15rem 0 .15rem 1.15rem;
+  border-left:2px solid var(--rule);
+  color:var(--ink-soft);
+  font-size:.945em;
+}
+blockquote.aside p:last-child{ margin-bottom:0; }
+
+ul.plain{ margin:0 0 1.15rem; padding-left:1.15rem; }
+ul.plain li{ margin:0 0 .45rem; }
+
+/* ============================================================
+   Math
+   ============================================================ */
+.eq, .eqb{ font-family:var(--serif); font-variant-numeric:lining-nums; }
+.eq{ white-space:nowrap; }
+.var{ font-style:italic; }
+.eqb{
+  display:block;
+  text-align:center;
+  margin:1.85rem auto;
+  font-size:1.16rem;
+  line-height:1.9;
+  color:var(--ink);
+  overflow-x:auto;
+  overflow-y:hidden;
+  padding:.2rem .2rem .5rem;
+  scrollbar-width:thin;
+}
+.eqb .lbl{
+  display:block;
+  font-family:var(--sans);
+  font-size:.7rem; letter-spacing:.08em; text-transform:uppercase;
+  color:var(--ink-mute);
+  margin-top:.55rem;
+}
+sub,sup{ font-size:.66em; line-height:0; }
+.frac{
+  display:inline-flex; flex-direction:column; align-items:stretch;
+  vertical-align:middle; margin:0 .22em; line-height:1.24; text-align:center;
+}
+.frac > .n{ padding:0 .4em .12em; }
+.frac > .d{ padding:.14em .4em 0; border-top:1px solid currentColor; }
+.rad{ display:inline-block; border-top:1px solid currentColor; padding:.05em .1em 0 .02em; margin-left:-.04em; }
+.paren{
+  font-size:2.15em; font-weight:300; line-height:0;
+  vertical-align:middle; display:inline-block;
+  transform:translateY(-.03em); margin:0 .04em;
+}
+.mat{ font-weight:650; font-style:normal; }
+.vecb{ font-weight:650; font-style:italic; }
+
+/* ============================================================
+   Figures
+   ============================================================ */
+/* Figures break out of the text column and centre on the page. */
+figure.fig{
+  margin:2.9rem 0 3.1rem;
+  width:min(var(--wide), calc(100vw - 2.2rem));
+  position:relative;
+  left:50%;
+  transform:translateX(-50%);
+}
+.fig-frame{
+  background:var(--bg-figure);
+  border:1px solid var(--rule);
+  border-radius:12px;
+  box-shadow:var(--shadow);
+  overflow:hidden;
+}
+.fig-canvas{
+  display:block;
+  width:100%;
+  touch-action:none;
+  outline:none;
+  cursor:default;
+}
+.fig-canvas:focus-visible{ box-shadow:inset 0 0 0 2px var(--focus); }
+.fig-body{ padding:0; }
+
+figcaption{
+  font-family:var(--sans);
+  font-size:.83rem;
+  line-height:1.55;
+  color:var(--ink-mute);
+  margin-top:.85rem;
+  width:min(var(--prose),100%);
+  margin-inline:auto;
+  text-wrap:pretty;
+}
+figcaption b{
+  color:var(--ink-soft);
+  font-weight:650;
+}
+
+/* Controls */
+.ctrls{
+  border-top:1px solid var(--rule-soft);
+  background:linear-gradient(var(--bg-sunken), var(--bg-sunken));
+  padding:.85rem 1rem .95rem;
+  display:flex; flex-wrap:wrap; gap:.7rem 1.5rem; align-items:center;
+  font-family:var(--sans);
+}
+.ctrl{ display:flex; align-items:center; gap:.6rem; flex:1 1 15rem; min-width:0; }
+.ctrl > label{
+  font-size:.75rem; letter-spacing:.035em; color:var(--ink-soft);
+  white-space:nowrap; flex:0 0 auto; font-weight:600;
+}
+.ctrl .val{
+  font-family:var(--mono); font-size:.72rem; color:var(--ink-mute);
+  min-width:3.4em; text-align:right; font-variant-numeric:tabular-nums;
+  flex:0 0 auto;
+}
+input[type=range]{
+  -webkit-appearance:none; appearance:none;
+  flex:1 1 4rem; min-width:3rem; height:22px; background:transparent; margin:0; cursor:grab;
+}
+input[type=range]:active{ cursor:grabbing; }
+input[type=range]::-webkit-slider-runnable-track{
+  height:3px; border-radius:2px; background:var(--rule);
+}
+input[type=range]::-moz-range-track{ height:3px; border-radius:2px; background:var(--rule); }
+input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none; appearance:none;
+  width:15px; height:15px; margin-top:-6px; border-radius:50%;
+  background:var(--bg-figure); border:2px solid var(--ink-soft);
+  box-shadow:0 1px 2px rgba(0,0,0,.18);
+  transition:border-color .12s, transform .12s;
+}
+input[type=range]::-moz-range-thumb{
+  width:15px; height:15px; border-radius:50%;
+  background:var(--bg-figure); border:2px solid var(--ink-soft);
+  box-shadow:0 1px 2px rgba(0,0,0,.18);
+}
+input[type=range]:hover::-webkit-slider-thumb{ transform:scale(1.12); }
+input[type=range]:focus-visible::-webkit-slider-thumb{ border-color:var(--focus); }
+input[type=range]:focus-visible{ outline:none; }
+
+.seg{ display:inline-flex; border:1px solid var(--rule); border-radius:7px; overflow:hidden; }
+.seg button{
+  font:inherit; font-size:.735rem; font-weight:600; letter-spacing:.01em;
+  padding:.32rem .68rem; border:0; background:var(--bg-figure); color:var(--ink-soft);
+  cursor:pointer; border-right:1px solid var(--rule);
+  transition:background .12s,color .12s;
+}
+.seg button:last-child{ border-right:0; }
+.seg button:hover{ background:var(--bg); color:var(--ink); }
+.seg button[aria-pressed="true"]{ background:var(--ink-soft); color:var(--bg-figure); }
+.seg button:focus-visible{ outline:2px solid var(--focus); outline-offset:-2px; }
+
+.tgl{
+  display:inline-flex; align-items:center; gap:.5rem; cursor:pointer;
+  font-size:.75rem; font-weight:600; color:var(--ink-soft); letter-spacing:.035em;
+  user-select:none; flex:0 0 auto;
+}
+.tgl input{ position:absolute; opacity:0; width:0; height:0; }
+.tgl .box{
+  width:32px; height:18px; border-radius:9px; background:var(--rule);
+  position:relative; transition:background .16s; flex:0 0 auto;
+}
+.tgl .box::after{
+  content:""; position:absolute; top:2px; left:2px; width:14px; height:14px;
+  border-radius:50%; background:var(--bg-figure); box-shadow:0 1px 2px rgba(0,0,0,.25);
+  transition:transform .16s;
+}
+.tgl input:checked + .box{ background:var(--weight); }
+.tgl input:checked + .box::after{ transform:translateX(14px); }
+.tgl input:focus-visible + .box{ outline:2px solid var(--focus); outline-offset:2px; }
+
+.btn{
+  font-family:var(--sans); font-size:.735rem; font-weight:600;
+  padding:.34rem .7rem; border-radius:7px;
+  border:1px solid var(--rule); background:var(--bg-figure); color:var(--ink-soft);
+  cursor:pointer; transition:background .12s,color .12s;
+}
+.btn:hover{ background:var(--bg); color:var(--ink); }
+.btn:focus-visible{ outline:2px solid var(--focus); outline-offset:1px; }
+
+.ctrl-note{
+  font-family:var(--sans); font-size:.7rem; color:var(--ink-mute);
+  flex:1 1 100%; margin:-.15rem 0 0;
+}
+
+/* Legend chips */
+.legend{
+  display:flex; flex-wrap:wrap; gap:.35rem .85rem;
+  font-family:var(--sans); font-size:.735rem; font-weight:600;
+  color:var(--ink-mute); letter-spacing:.02em;
+  padding:.6rem 1rem; border-top:1px solid var(--rule-soft);
+}
+.legend span{ display:inline-flex; align-items:center; gap:.4rem; }
+.legend i{ width:11px; height:11px; border-radius:3px; display:inline-block; }
+
+/* Colour key block in prose */
+.keybox{
+  display:grid; grid-template-columns:auto 1fr; gap:.5rem 1rem;
+  font-family:var(--sans); font-size:.86rem; line-height:1.45;
+  margin:1.6rem 0 1.9rem; padding:1rem 1.1rem;
+  background:var(--bg-sunken); border-radius:10px;
+  border:1px solid var(--rule-soft);
+}
+.keybox dt{ font-weight:700; white-space:nowrap; }
+.keybox dd{ margin:0; color:var(--ink-soft); }
+
+/* Theme toggle */
+.theme-btn{
+  position:fixed; top:.85rem; right:.85rem; z-index:50;
+  width:34px; height:34px; border-radius:50%;
+  border:1px solid var(--rule); background:var(--bg-figure); color:var(--ink-soft);
+  cursor:pointer; display:grid; place-items:center;
+  box-shadow:var(--shadow);
+  transition:transform .15s, color .15s;
+}
+.theme-btn:hover{ transform:scale(1.06); color:var(--ink); }
+.theme-btn:focus-visible{ outline:2px solid var(--focus); outline-offset:2px; }
+.theme-btn svg{ width:16px; height:16px; }
+
+footer.end{
+  margin:5rem 0 4.5rem; padding-top:1.6rem;
+  border-top:1px solid var(--rule);
+  font-family:var(--sans); font-size:.8rem; line-height:1.65; color:var(--ink-mute);
+}
+footer.end p{ margin:0 0 .6rem; }
+
+::selection{ background:var(--weight-wash); }
+
+@media (prefers-reduced-motion: reduce){
+  *{ animation-duration:.001ms !important; transition-duration:.001ms !important; }
+}
+</style>
+</head>
+<body>
+<button class="theme-btn" id="themeBtn" type="button" aria-label="Switch between light and dark theme" title="Switch theme">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
+    <path id="themeIcon" d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>
+  </svg>
+</button>
+<header class="masthead wrap">
+  <div class="col">
+    <h1>Attention</h1>
+    <p class="deck">A transformer is built out of one small idea repeated a few thousand times. This is that idea, one head of it, with every number on the table.</p>
+    <p class="byline"><span>Interactive essay</span><span>Drag anything that moves</span></p>
+  </div>
+</header>
+
+<main class="wrap">
+
+<div class="col">
+<p>Read this sentence slowly: <em>the cat sat on the mat because it was warm.</em></p>
+
+<p>When you reached the word <span class="word">it</span>, something happened that you probably did not notice. You went back. Not to the beginning &mdash; you went back to a <em>specific</em> earlier word, and you brought it forward, and only then did the rest of the sentence make sense. The word <span class="word">it</span> carries almost no meaning on its own. Nearly all of its meaning is borrowed.</p>
+
+<p>That borrowing is the problem attention solves. A neural network reading text starts by turning every word into a list of numbers &mdash; a vector &mdash; and those vectors are computed one word at a time, in isolation. The vector for <span class="word">it</span> knows everything about the word <span class="word">it</span> in general and nothing whatsoever about this cat, this mat, or this particular warmth. Some part of the machine has to go and fetch. <em>Attention</em> is the part that goes and fetches.</p>
+
+<p>This essay is about exactly one <span class="term">attention head</span>. Not a whole transformer: no stacked layers, no feed-forward blocks, no normalisation, no training. One head, one sentence, and every intermediate quantity visible and adjustable. By the end you will have built a working head by hand and watched it learn nothing at all, because you will have set its weights yourself.</p>
+
+<p>Everything below that looks draggable is draggable. Everything that looks like a number is a real number, computed live from what you are doing.</p>
+
+<h2><span class="num">1</span>Alignment is a number</h2>
+
+<p>Before any of the machinery, one piece of arithmetic. Attention is built almost entirely out of a single operation on vectors, and if that operation is comfortable, the rest is packaging.</p>
+
+<p>Take two vectors, <span class="eq"><span class="vecb">a</span></span> and <span class="eq"><span class="vecb">b</span></span>. Multiply them component by component and add up the results. That is the <span class="term">dot product</span>:</p>
+
+<div class="eqb col">
+<span class="eq"><span class="vecb">a</span> &middot; <span class="vecb">b</span> &nbsp;=&nbsp; <span class="var">a</span><sub>1</sub><span class="var">b</span><sub>1</sub> + <span class="var">a</span><sub>2</sub><span class="var">b</span><sub>2</sub> + &hellip; + <span class="var">a</span><sub><span class="var">d</span></sub><span class="var">b</span><sub><span class="var">d</span></sub> &nbsp;=&nbsp; |<span class="vecb">a</span>| |<span class="vecb">b</span>| cos&thinsp;<span class="var">&theta;</span></span>
+</div>
+
+<p>The second form is the one worth carrying around. The dot product is large when the two vectors point the same way, zero when they are perpendicular, and negative when they point apart &mdash; scaled, in every case, by how long they are. It is a single number that answers the question <em>how much do these two agree?</em></p>
+
+<figure class="fig" id="fig-dot">
+  <div class="fig-frame" data-fig="dot"></div>
+  <figcaption><b>Figure 1.</b> Drag either arrow. The dot product is the length of <span class="k">b</span>'s shadow cast onto the line through <span class="q">a</span>, multiplied by the length of <span class="q">a</span>. Sweep <span class="k">b</span> past the perpendicular and the shadow falls on the far side: the number goes negative. Stretch either arrow and the number scales with it. <em>Keyboard: click the panel, then use the arrow keys to move a handle and the space bar to switch between them.</em></figcaption>
+</figure>
+
+<p>Two properties will matter later. First, the dot product is <em>symmetric</em>: <span class="eq"><span class="vecb">a</span> &middot; <span class="vecb">b</span></span> and <span class="eq"><span class="vecb">b</span> &middot; <span class="vecb">a</span></span> are the same number. Second, it is unbounded &mdash; make the arrows twice as long and the score quadruples. Both of these will need fixing.</p>
+
+<h2><span class="num">2</span>One question, many answers</h2>
+
+<p>Now put words in the picture. Give every word in our sentence a vector. Words that behave alike get vectors that point in similar directions; that is the whole premise of an embedding, and for the moment we can simply assert it and draw it.</p>
+
+<p>Then take one more vector and call it the <span class="q">query</span>: the thing doing the asking. Compare it against every word vector &mdash; every <span class="k">key</span> &mdash; with a dot product, and you get one number per word. A ranking. A profile of relevance.</p>
+
+<figure class="fig" id="fig-keys">
+  <div class="fig-frame" data-fig="keys"></div>
+  <figcaption><b>Figure 2.</b> Drag the <span class="q">query</span> arrow. Each word of the sentence is a fixed <span class="k">key</span> vector; the bars are the dot products of the query against each one. Point the query at a word and its bar dominates. Point it between two words and both light up. Shorten the query and every bar shrinks together &mdash; the query's length sets the overall confidence, not the ranking.</figcaption>
+</figure>
+
+<p>This is already recognisably attention: <em>one vector interrogating a set of others and receiving a score for each</em>. What is missing is any reason for the query to point somewhere useful, and any way for the scores to become an answer rather than a list.</p>
+
+<h2><span class="num">3</span>Queries and keys are different views of the same word</h2>
+
+<p>The obvious thing to try is to use a word's own embedding as its query, and every other word's embedding as its key. It fails, and the way it fails is instructive.</p>
+
+<p>Under that scheme, the score between two words is the dot product of their embeddings, which measures <em>similarity</em>. But <span class="word">it</span> is not similar to <span class="word">mat</span>. A pronoun and a noun are about as unalike as two words can be, and yet the pronoun urgently needs the noun. The relation we want to detect &mdash; <em>this is what that refers to</em> &mdash; is not similarity. Worse, similarity is symmetric: if <span class="word">it</span> attends to <span class="word">mat</span>, then <span class="word">mat</span> must attend equally to <span class="word">it</span>, which is nonsense. Relations between words have direction.</p>
+
+<p>So the head does not use the embedding directly. It keeps two learned matrices, <span class="eq"><span class="mat q">W<sub>Q</sub></span></span> and <span class="eq"><span class="mat k">W<sub>K</sub></span></span>, and projects each word through them &mdash; twice, into two different spaces:</p>
+
+<div class="eqb col">
+<span class="eq"><span class="q vecb">q</span><sub><span class="var">i</span></sub> = <span class="mat q">W<sub>Q</sub></span>&thinsp;<span class="vecb">e</span><sub><span class="var">i</span></sub></span>
+&nbsp;&nbsp;&nbsp;&nbsp;
+<span class="eq"><span class="k vecb">k</span><sub><span class="var">j</span></sub> = <span class="mat k">W<sub>K</sub></span>&thinsp;<span class="vecb">e</span><sub><span class="var">j</span></sub></span>
+<span class="lbl">two lenses on the same embedding</span>
+</div>
+
+<p>A matrix acting on a vector is a linear map: it stretches space along some directions, squashes it along others, and rotates the whole thing. It is worth seeing that rather than being told it.</p>
+
+<figure class="fig" id="fig-proj">
+  <div class="fig-frame" data-fig="proj"></div>
+  <figcaption><b>Figure 3.</b> The same six words, seen through two different lenses. Each matrix stretches the plane along one axis and rotates it; the faint grid shows what happens to space itself. Under the <span class="q">query</span> lens and the <span class="k">key</span> lens, the <em>same</em> pair of words can be near or far. That is the point: the head chooses which distinctions matter.</figcaption>
+</figure>
+
+<p>Now write out the score between word <span class="eq"><span class="var">i</span></span> asking and word <span class="eq"><span class="var">j</span></span> answering:</p>
+
+<div class="eqb col">
+<span class="eq"><span class="var">s</span><sub><span class="var">ij</span></sub> = <span class="q vecb">q</span><sub><span class="var">i</span></sub> &middot; <span class="k vecb">k</span><sub><span class="var">j</span></sub> = (<span class="mat q">W<sub>Q</sub></span><span class="vecb">e</span><sub><span class="var">i</span></sub>) &middot; (<span class="mat k">W<sub>K</sub></span><span class="vecb">e</span><sub><span class="var">j</span></sub>) = <span class="vecb">e</span><sub><span class="var">i</span></sub><sup>&#8868;</sup> <span class="mat q">W<sub>Q</sub></span><sup>&#8868;</sup><span class="mat k">W<sub>K</sub></span> <span class="vecb">e</span><sub><span class="var">j</span></sub></span>
+</div>
+
+<p>Two things fall out of that last form. The matrices only ever appear as the single product <span class="eq"><span class="mat q">W<sub>Q</sub></span><sup>&#8868;</sup><span class="mat k">W<sub>K</sub></span></span> &mdash; splitting it in two is a matter of parameter count, not expressiveness. And that product need not be symmetric, so <span class="eq"><span class="var">s</span><sub><span class="var">ij</span></sub></span> need not equal <span class="eq"><span class="var">s</span><sub><span class="var">ji</span></sub></span>. The head can look for a relation that runs one way. <span class="word">it</span> may seek <span class="word">mat</span> without <span class="word">mat</span> seeking <span class="word">it</span>.</p>
+
+<blockquote class="aside">
+<p>Notice also that the projections are usually to a <em>smaller</em> space: a model with 768-dimensional embeddings might give each head only 64 dimensions to work with. A head is not asked to understand the sentence. It is asked to notice one kind of thing about it, cheaply, so that a dozen of its colleagues can notice a dozen others in parallel.</p>
+</blockquote>
+
+<h2><span class="num">4</span>Dot products grow with dimension</h2>
+
+<p>There is a nuisance hiding in that projection. Real heads work in 64 or 128 dimensions, not two, and a dot product is a <em>sum</em> over dimensions. Add more dimensions and you add more terms to the sum.</p>
+
+<p>Suppose the components of the query and key are independent, with mean zero and variance one. Each product term then has variance one, and since the terms are independent, the variances add. The dot product of two <span class="eq"><span class="var">d</span></span>-dimensional vectors has variance <span class="eq"><span class="var">d</span></span>, which is to say a typical magnitude of <span class="eq">&radic;<span class="rad"><span class="var">d</span>&thinsp;</span></span>. In 64 dimensions the scores are eight times larger than in one dimension, for no reason anyone intended.</p>
+
+<figure class="fig" id="fig-scale">
+  <div class="fig-frame" data-fig="scale"></div>
+  <figcaption><b>Figure 4.</b> Dot products of random unit-variance vectors, one dot per sample, as the dimension changes. The cloud fans out like <span class="eq">&radic;<span class="rad"><span class="var">d</span>&thinsp;</span></span> &mdash; the curved envelope is exactly &plusmn;<span class="eq">&radic;<span class="rad"><span class="var">d</span>&thinsp;</span></span>. Divide by <span class="eq">&radic;<span class="rad"><span class="var">d</span>&thinsp;</span></span> and the spread is pinned to 1 no matter how wide the head gets.</figcaption>
+</figure>
+
+<p>Hence the <span class="eq">1&thinsp;/&thinsp;&radic;<span class="rad"><span class="var">d</span><sub><span class="var">k</span></sub>&thinsp;</span></span> that decorates every attention formula. It is not a deep idea; it is a unit conversion, chosen so that the numbers arriving at the next step have a sane size regardless of how many dimensions the head was given. Why a sane size matters is the subject of the next step, which is where the scores stop being scores.</p>
+
+<h2><span class="num">5</span>From scores to weights</h2>
+
+<p>We have a list of numbers, one per word, of arbitrary sign and arbitrary size. We want a set of <em>weights</em>: all positive, summing to one, so that the head's output is an average and not an explosion. The standard instrument is the <span class="term">softmax</span>.</p>
+
+<div class="eqb col">
+<span class="eq"><span class="w">&alpha;</span><sub><span class="var">j</span></sub> = <span class="frac"><span class="n">exp(<span class="var">s</span><sub><span class="var">j</span></sub>)</span><span class="d">&sum;<sub><span class="var">m</span></sub> exp(<span class="var">s</span><sub><span class="var">m</span></sub>)</span></span></span>
+<span class="lbl">exponentiate, then normalise</span>
+</div>
+
+<p>Exponentiating makes everything positive; dividing by the total makes it sum to one. What makes softmax interesting rather than merely convenient is what exponentiation does to <em>gaps</em>. Only the differences between scores survive &mdash; add ten to every score and nothing changes &mdash; and a difference of 1 becomes a ratio of <span class="eq"><span class="var">e</span> &asymp; 2.72</span>, a difference of 5 becomes a ratio of about 148.</p>
+
+<figure class="fig" id="fig-softmax">
+  <div class="fig-frame" data-fig="softmax"></div>
+  <figcaption><b>Figure 5.</b> Drag the <span class="k">score</span> handles up and down; the <span class="w">weights</span> below are their softmax. Slide the whole set up or down with <em>shift all</em> and nothing at all happens to the weights &mdash; softmax sees only differences. The temperature knob multiplies every score by a constant: turn it down and the weights flatten toward a uniform average, turn it up and one word swallows all the weight.</figcaption>
+</figure>
+
+<p>That temperature knob is the same knob as <span class="eq">1&thinsp;/&thinsp;&radic;<span class="rad"><span class="var">d</span><sub><span class="var">k</span></sub>&thinsp;</span></span> from the previous section. Now the reason for it is visible: let the raw scores drift to a spread of &plusmn;20 and the softmax pins itself to a single word. Its output stops responding to small changes in the input, which means the gradient reaching <span class="eq"><span class="mat q">W<sub>Q</sub></span></span> and <span class="eq"><span class="mat k">W<sub>K</sub></span></span> during training goes to nearly zero, and the head stops learning. The scale factor keeps the softmax in the part of its range where it still has opinions that can change.</p>
+
+<h2><span class="num">6</span>What actually gets fetched</h2>
+
+<p>The weights say <em>where to look</em>. They say nothing about <em>what to bring back</em>. It would be a mistake to bring back the keys: keys are addresses, shaped for being matched against. So there is a third projection, and a third vector per word &mdash; the <span class="v">value</span>:</p>
+
+<div class="eqb col">
+<span class="eq"><span class="v vecb">v</span><sub><span class="var">j</span></sub> = <span class="mat v">W<sub>V</sub></span>&thinsp;<span class="vecb">e</span><sub><span class="var">j</span></sub></span>
+&nbsp;&nbsp;&nbsp;&nbsp;
+<span class="eq"><span class="w vecb">o</span><sub><span class="var">i</span></sub> = &sum;<sub><span class="var">j</span></sub> <span class="w">&alpha;</span><sub><span class="var">ij</span></sub> <span class="v vecb">v</span><sub><span class="var">j</span></sub></span>
+<span class="lbl">the output is a weighted average of values</span>
+</div>
+
+<p>Address and cargo are separated. A word can be easy to find for one reason and worth retrieving for a completely different one &mdash; the key can encode <em>I am a noun near the start</em> while the value encodes <em>warm, soft, furniture</em>.</p>
+
+<figure class="fig" id="fig-values">
+  <div class="fig-frame" data-fig="values"></div>
+  <figcaption><b>Figure 6.</b> Drag the <span class="v">value</span> vectors, or drag the <span class="w">weight</span> bars. The <span class="w">output</span> is their weighted average, and it can never leave the shaded hull no matter what the weights do. A head does not invent content; it decides which of the content already present gets carried forward, and in what proportion.</figcaption>
+</figure>
+
+<p>The convex hull in that figure is a real constraint and a real limitation. With weights that are positive and sum to one, the output is always some blend of what the values already contain. A single head is a routing device. Whatever nonlinear transformation the information needs, it will get elsewhere in the layer.</p>
+
+<h2><span class="num">7</span>Every word asks at once</h2>
+
+<p>So far one query. But every word in the sentence is simultaneously a query, a key, and a value &mdash; every word is asking its own question while answering everyone else's. Stack the queries as rows of a matrix <span class="eq"><span class="mat q">Q</span></span>, the keys as rows of <span class="eq"><span class="mat k">K</span></span>, and one matrix product produces every score at once:</p>
+
+<div class="eqb col">
+<span class="eq"><span class="mat">S</span> = <span class="frac"><span class="n"><span class="mat q">Q</span><span class="mat k">K</span><sup>&#8868;</sup></span><span class="d">&radic;<span class="rad"><span class="var">d</span><sub><span class="var">k</span></sub>&thinsp;</span></span></span></span>
+<span class="lbl">row <span class="var">i</span>, column <span class="var">j</span>: how much word <span class="var">i</span> wants word <span class="var">j</span></span>
+</div>
+
+<p>Softmax is then applied along each row independently &mdash; every word's weights must sum to one on their own &mdash; and the result is the <span class="term">attention matrix</span>. It is the most-looked-at object in machine learning, and it is worth being precise about how to read it: <strong>rows are askers, columns are answerers, and rows sum to one.</strong></p>
+
+<figure class="fig" id="fig-matrix">
+  <div class="fig-frame" data-fig="matrix"></div>
+  <figcaption><b>Figure 7.</b> Hover or tap a cell to read one score. The first grid is <span class="eq"><span class="mat">S</span></span>, raw and signed; the second is what survives the row-wise softmax. Switch on the <span class="term">causal mask</span> and everything above the diagonal is set to &minus;&infin; before the softmax, which sends its weight to exactly zero: a word may look at itself and at its past, never at its future.</figcaption>
+</figure>
+
+<p>The mask exists because of how these models are trained. A language model predicts the next token, and it is trained on every position of a sentence in parallel &mdash; hundreds of predictions from one forward pass. That only works if the prediction at position 5 cannot see position 6, which would otherwise be a very short path to a perfect score and a useless model. The mask enforces the arrow of time inside the matrix multiply, at no cost.</p>
+
+<h2><span class="num">8</span>The whole thing, in one line</h2>
+
+<p>Every piece is now on the table, and they assemble into a formula you have probably seen before:</p>
+
+<div class="eqb col" style="font-size:1.3rem">
+<span class="eq">Attention(<span class="mat q">Q</span>, <span class="mat k">K</span>, <span class="mat v">V</span>) = softmax<span class="paren">(</span><span class="frac"><span class="n"><span class="mat q">Q</span><span class="mat k">K</span><sup>&#8868;</sup></span><span class="d">&radic;<span class="rad"><span class="var">d</span><sub><span class="var">k</span></sub>&thinsp;</span></span></span><span class="paren">)</span>&thinsp;<span class="mat v">V</span></span>
+</div>
+
+<dl class="keybox">
+  <dt class="q">Q &mdash; queries</dt><dd>what each word is looking for</dd>
+  <dt class="k">K &mdash; keys</dt><dd>what each word offers as a handle</dd>
+  <dt class="v">V &mdash; values</dt><dd>what each word hands over if chosen</dd>
+  <dt class="w">softmax</dt><dd>turns a row of scores into a budget of attention that sums to one</dd>
+</dl>
+
+<p>Written as one picture rather than one line, with our seven-token sentence flowing through it:</p>
+
+<figure class="fig" id="fig-pipeline">
+  <div class="fig-frame" data-fig="pipeline"></div>
+  <figcaption><b>Figure 8.</b> One head, end to end. Every block is the real matrix for <span class="tok">the cat sat on the warm mat</span>, drawn to scale: seven rows of four numbers go in, three projections fan out, one <span class="eq"><span class="var">n</span>&times;<span class="var">n</span></span> grid of scores is masked and normalised, and seven rows of four numbers come out. Nothing changes shape except in the middle, where every token briefly meets every other one. In <em>this particular</em> head <span class="eq"><span class="mat k">W<sub>K</sub></span></span> and <span class="eq"><span class="mat v">W<sub>V</sub></span></span> are the identity, so <span class="k">K</span> and <span class="v">V</span> are copies of <span class="eq"><span class="mat">X</span></span> and only the query is turned &mdash; the next section explains why that single turn is enough.</figcaption>
+</figure>
+
+<p>The whole formula is: <em>compare everything to everything, normalise, average.</em> Three learned matrices and a normalisation. There is no recurrence, no gating, no memory cell. This is the entire mechanism, and it is worth pausing on how little it is.</p>
+
+<h2><span class="num">9</span>A head you can build by hand</h2>
+
+<p>Reading the formula is not the same as believing that a head can <em>do</em> anything. So let us build one, small enough to see completely, and give you its weights.</p>
+
+<p>Our sentence is seven tokens: <span class="tok">the cat sat on the warm mat</span>. Each embedding will have four dimensions, split into two halves that we get to choose the meaning of.</p>
+
+<ul class="plain">
+<li>The first two dimensions are <strong>content</strong>: a unit vector whose direction encodes what the word means. Repeated words share a direction exactly; related words sit near each other.</li>
+<li>The last two dimensions are <strong>position</strong>: the token's index <span class="eq"><span class="var">t</span></span> written as a point on a circle, <span class="eq">(cos&thinsp;<span class="var">t&Delta;</span>, sin&thinsp;<span class="var">t&Delta;</span>)</span>. Each successive token is one fixed step further around; we will use a step of <span class="eq"><span class="var">&Delta;</span> = 45&deg;</span>.</li>
+</ul>
+
+<p>Now choose the weights. Let <span class="eq"><span class="mat k">W<sub>K</sub></span></span> be the identity &mdash; keys are just the embeddings. Let <span class="eq"><span class="mat q">W<sub>Q</sub></span></span> do two things: scale the content half by a gain <span class="eq"><span class="var">g</span><sub>c</sub></span>, and scale <em>and rotate</em> the position half by a gain <span class="eq"><span class="var">g</span><sub>p</sub></span> and an angle <span class="eq"><span class="var">&phi;</span></span>. That is a perfectly ordinary 4&times;4 matrix; it is just one we can describe in three knobs.</p>
+
+<p>Because the two halves are orthogonal, the dot product splits cleanly into two independent terms, and the position term collapses through the cosine angle-difference identity into something remarkably simple:</p>
+
+<div class="eqb col">
+<span class="eq"><span class="var">s</span><sub><span class="var">ij</span></sub> = <span class="frac"><span class="n"><span class="var">g</span><sub>c</sub>&thinsp;(<span class="vecb">c</span><sub><span class="var">i</span></sub> &middot; <span class="vecb">c</span><sub><span class="var">j</span></sub>) &nbsp;+&nbsp; <span class="var">g</span><sub>p</sub>&thinsp;cos<span style="font-weight:300">(</span>(<span class="var">i</span> &minus; <span class="var">j</span>)<span class="var">&Delta;</span> + <span class="var">&phi;</span><span style="font-weight:300">)</span></span><span class="d">&radic;<span class="rad"><span class="var">d</span><sub><span class="var">k</span></sub>&thinsp;</span></span></span></span>
+<span class="lbl">content agreement &nbsp;+&nbsp; relative position, over the usual scale</span>
+</div>
+
+<p>Read that second term carefully, because it is the interesting one. It depends on <span class="eq"><span class="var">i</span> &minus; <span class="var">j</span></span> &mdash; the <em>distance</em> between the two tokens &mdash; and not on where either one sits in the sentence. And it is maximised when <span class="eq">(<span class="var">i</span> &minus; <span class="var">j</span>)<span class="var">&Delta;</span> + <span class="var">&phi;</span> = 0</span>. Set the rotation <span class="eq"><span class="var">&phi;</span> = &minus;<span class="var">&Delta;</span></span> and every token's strongest score lands on the token exactly one step behind it. A single angle in a single matrix, and the head has become a <em>previous-token head</em>.</p>
+
+<figure class="fig" id="fig-head">
+  <div class="fig-frame" data-fig="head"></div>
+  <figcaption><b>Figure 9.</b> A complete head, four dimensions wide, seven tokens long. Turn <span class="q">&phi;</span> &mdash; or press <em>Sweep&nbsp;&phi;</em> and let it turn itself &mdash; and watch the bright diagonal slide across the matrix: at &minus;45&deg; every token reads its predecessor, at 0&deg; every token reads itself, at &minus;90&deg; it reads two back. Turn the content gain up instead and the pattern abandons position entirely &mdash; the second <span class="word">the</span> locks onto the first, because their content vectors are identical. The presets set both at once. Click any token, or any row of the matrix, to inspect what it retrieves.</figcaption>
+</figure>
+
+<p>Nothing here is a metaphor for what real models do. Rotary position embeddings, used in most current large language models, encode position as exactly this kind of rotation, in pairs of dimensions, at many different frequencies at once; the dot product of two rotated vectors then depends only on their relative offset, for exactly the reason above. Previous-token heads are among the first things found when researchers open up a trained transformer and look, and they are built out of precisely this trick.</p>
+
+<h2><span class="num">10</span>One head is not much, on purpose</h2>
+
+<p>Take stock of what the head in Figure 9 can and cannot do. It computes one bilinear form and one weighted average. It cannot represent <em>and</em>: it cannot say <em>attend to the noun that is also to my left</em> unless that conjunction happens to be expressible as a single dot product. Give it two relations to track and it will blur them together, splitting its weight between them and returning an average of two answers, which is usually worse than either.</p>
+
+<p>So the design does the obvious thing. Run several heads side by side on the same input, each with its own small <span class="eq"><span class="mat q">W<sub>Q</sub></span>, <span class="mat k">W<sub>K</sub></span>, <span class="mat v">W<sub>V</sub></span></span>, concatenate their outputs, and pass the result through one more matrix. Each head gets to be narrow-minded. One tracks the previous token, one matches repeated words, one carries the subject of the sentence forward &mdash; and because they read from and write to the same shared vector for each token, a head in layer 4 can pose a question that only makes sense because a head in layer 2 already answered a different one.</p>
+
+<p>That composition is where the interesting behaviour lives. The famous example is the <span class="term">induction head</span>: a pair of heads across two layers that between them implement <em>the last time I saw this token, what came next? Predict that.</em> The first head writes each token's identity into the position that follows it. The second head, sitting at the current token, looks for an earlier position whose key now carries that same identity &mdash; which is precisely the position just after the last time this token appeared &mdash; and copies forward what it finds there. Neither half is intelligent. The pair completes patterns it has never seen.</p>
+
+<p>None of the weights in this essay were learned. Every matrix here was chosen by hand so that its effect would be visible, which is a luxury real heads do not get &mdash; theirs are found by gradient descent, and are correspondingly messier, more entangled, and better. But the machinery is the machinery. A trained head does what the head in Figure 9 does: it projects, it takes dot products, it divides by a square root, it exponentiates and normalises, and it averages. Everything else a transformer knows is built out of doing that a few thousand times.</p>
+
+<footer class="end col">
+<p>Every figure on this page computes its numbers live in the browser &mdash; the dot products, the softmaxes, the sampled distributions and the attention matrices are all real, none are pre-rendered. The toy embeddings and weight matrices were chosen by hand for legibility.</p>
+<p>The formula in section 8 is the one given by Vaswani et&nbsp;al., <em>Attention Is All You Need</em> (2017). The rotation trick in section 9 is the idea behind rotary position embeddings (Su et&nbsp;al., 2021). Previous-token heads and induction heads were identified and named in Anthropic's transformer-circuits work (Elhage et&nbsp;al., 2021; Olsson et&nbsp;al., 2022).</p>
+<p>Built as a single self-contained HTML file: no frameworks, no network requests, no dependencies. It works offline.</p>
+</footer>
+
+</div>
+</main>
+
+<script>
+"use strict";
+
+/* ============================================================
+   Theme
+   ============================================================ */
+const THEME_KEY = "attn-theme";
+function preferredTheme() {
+  try { const s = localStorage.getItem(THEME_KEY); if (s === "light" || s === "dark") return s; } catch (e) {}
+  return window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+}
+function applyTheme(t) {
+  document.documentElement.setAttribute("data-theme", t);
+  const icon = document.getElementById("themeIcon");
+  if (icon) {
+    icon.setAttribute("d", t === "dark"
+      ? "M12 4.5v-2M12 21.5v-2M4.5 12h-2M21.5 12h-2M6.7 6.7 5.3 5.3M18.7 18.7l-1.4-1.4M6.7 17.3l-1.4 1.4M18.7 5.3l-1.4 1.4M16 12a4 4 0 1 1-8 0 4 4 0 0 1 8 0z"
+      : "M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z");
+  }
+}
+applyTheme(preferredTheme());
+
+/* ============================================================
+   Palette — canvas colours are read from the stylesheet so that
+   the figures and the page can never drift apart.
+   ============================================================ */
+const P = {};
+const PAL_KEYS = {
+  ink: "--ink", inkSoft: "--ink-soft", inkMute: "--ink-mute",
+  rule: "--rule", ruleSoft: "--rule-soft",
+  grid: "--grid", gridBold: "--grid-bold",
+  query: "--query", key: "--key", value: "--value", weight: "--weight", neutral: "--neutral",
+  bg: "--bg", panel: "--bg-figure", sunken: "--bg-sunken"
+};
+function refreshPalette() {
+  const cs = getComputedStyle(document.documentElement);
+  for (const k in PAL_KEYS) P[k] = cs.getPropertyValue(PAL_KEYS[k]).trim() || "#888";
+}
+refreshPalette();
+
+function alpha(col, a) {
+  if (col[0] === "#") {
+    let h = col.slice(1);
+    if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
+    const n = parseInt(h, 16);
+    return "rgba(" + ((n >> 16) & 255) + "," + ((n >> 8) & 255) + "," + (n & 255) + "," + a + ")";
+  }
+  if (col.indexOf("rgb(") === 0) return col.replace("rgb(", "rgba(").replace(")", "," + a + ")");
+  return col;
+}
+function mix(c1, c2, t) {
+  const p = (c) => {
+    let h = c[0] === "#" ? c.slice(1) : "888888";
+    if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
+    const n = parseInt(h, 16);
+    return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  };
+  const a = p(c1), b = p(c2);
+  return "rgb(" + Math.round(a[0] + (b[0] - a[0]) * t) + "," +
+    Math.round(a[1] + (b[1] - a[1]) * t) + "," +
+    Math.round(a[2] + (b[2] - a[2]) * t) + ")";
+}
+
+const SANS = '-apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif';
+const MONO = 'ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace';
+const SERIF = '"Iowan Old Style", "Palatino Linotype", Palatino, Charter, Georgia, serif';
+function font(size, weight, family) { return (weight || 400) + " " + size + "px " + (family || SANS); }
+
+const REDUCED = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+/* ============================================================
+   Small maths
+   ============================================================ */
+const TAU = Math.PI * 2;
+const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+const lerp = (a, b, t) => a + (b - a) * t;
+const rad = (d) => d * Math.PI / 180;
+const deg = (r) => r * 180 / Math.PI;
+function softmax(scores) {
+  let m = -Infinity;
+  for (let i = 0; i < scores.length; i++) if (scores[i] > m) m = scores[i];
+  if (!isFinite(m)) return scores.map(() => 0);
+  const ex = scores.map((s) => isFinite(s) ? Math.exp(s - m) : 0);
+  let sum = 0;
+  for (let i = 0; i < ex.length; i++) sum += ex[i];
+  return sum > 0 ? ex.map((e) => e / sum) : ex.map(() => 0);
+}
+function fmt(v, n) {
+  if (!isFinite(v)) return "−∞";
+  let s = v.toFixed(n === undefined ? 2 : n);
+  if (/^-0(\.0*)?$/.test(s)) s = s.slice(1);   // never print a negative zero
+  return s.replace(/^-/, "−");
+}
+// Deterministic pseudo-random, so every reader sees the same clouds.
+function mulberry(seed) {
+  let a = seed >>> 0;
+  return function () {
+    a |= 0; a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+function gaussPair(rng) {
+  let u = 0, v = 0;
+  while (u === 0) u = rng();
+  while (v === 0) v = rng();
+  return Math.sqrt(-2 * Math.log(u)) * Math.cos(TAU * v);
+}
+
+/* ============================================================
+   Canvas drawing helpers
+   ============================================================ */
+function line(ctx, x1, y1, x2, y2, col, w) {
+  ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2);
+  ctx.strokeStyle = col; ctx.lineWidth = w || 1; ctx.stroke();
+}
+function rr(ctx, x, y, w, h, r) {
+  const rad2 = Math.min(r, Math.abs(w) / 2, Math.abs(h) / 2);
+  ctx.beginPath();
+  if (ctx.roundRect) { ctx.roundRect(x, y, w, h, rad2); return; }
+  ctx.moveTo(x + rad2, y);
+  ctx.arcTo(x + w, y, x + w, y + h, rad2);
+  ctx.arcTo(x + w, y + h, x, y + h, rad2);
+  ctx.arcTo(x, y + h, x, y, rad2);
+  ctx.arcTo(x, y, x + w, y, rad2);
+  ctx.closePath();
+}
+function arrow(ctx, x1, y1, x2, y2, col, w, head) {
+  const dx = x2 - x1, dy = y2 - y1;
+  const len = Math.hypot(dx, dy);
+  const hw = head === undefined ? Math.max(7, w * 3.2) : head;
+  ctx.strokeStyle = col; ctx.fillStyle = col;
+  ctx.lineWidth = w; ctx.lineCap = "round"; ctx.lineJoin = "round";
+  if (len < 1e-6) { ctx.beginPath(); ctx.arc(x1, y1, w, 0, TAU); ctx.fill(); return; }
+  const ux = dx / len, uy = dy / len;
+  const bodyLen = Math.max(0, len - hw * 0.92);
+  ctx.beginPath();
+  ctx.moveTo(x1, y1);
+  ctx.lineTo(x1 + ux * bodyLen, y1 + uy * bodyLen);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(x2, y2);
+  ctx.lineTo(x2 - ux * hw - uy * hw * 0.46, y2 - uy * hw + ux * hw * 0.46);
+  ctx.lineTo(x2 - ux * hw + uy * hw * 0.46, y2 - uy * hw - ux * hw * 0.46);
+  ctx.closePath();
+  ctx.fill();
+  ctx.lineCap = "butt";
+}
+function label(ctx, txt, x, y, col, f, align, baseline) {
+  ctx.font = f || font(11, 600);
+  ctx.fillStyle = col;
+  ctx.textAlign = align || "center";
+  ctx.textBaseline = baseline || "middle";
+  ctx.fillText(txt, x, y);
+  ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
+}
+function chip(ctx, txt, x, y, col, bgc, pad) {
+  ctx.font = font(11.5, 600, MONO);
+  const w = ctx.measureText(txt).width + (pad === undefined ? 12 : pad) * 2;
+  const h = 20;
+  rr(ctx, x - w / 2, y - h / 2, w, h, 6);
+  ctx.fillStyle = bgc; ctx.fill();
+  label(ctx, txt, x, y + 0.5, col, font(11.5, 600, MONO));
+  return w;
+}
+function dashed(ctx, x1, y1, x2, y2, col, w, pat) {
+  ctx.save();
+  ctx.setLineDash(pat || [3, 4]);
+  line(ctx, x1, y1, x2, y2, col, w || 1);
+  ctx.restore();
+}
+
+/* ============================================================
+   Panel — canvas + controls, DPR aware, pointer + keyboard
+   ============================================================ */
+const PANELS = [];
+let animPending = false;
+
+class Panel {
+  constructor(host, spec) {
+    this.host = host;
+    this.spec = spec;
+    this.state = spec.state || {};
+    this.W = 0; this.H = 0;
+    this.hoverId = null;
+    this.dragId = null;
+    this.focusIdx = 0;
+    this.hasFocus = false;
+    this.touched = false;
+    this.visible = true;
+    this.t0 = performance.now();
+
+    const c = document.createElement("canvas");
+    c.className = "fig-canvas";
+    c.tabIndex = 0;
+    c.setAttribute("role", "img");
+    if (spec.aria) c.setAttribute("aria-label", spec.aria);
+    this.canvas = c;
+    this.ctx = c.getContext("2d");
+    host.appendChild(c);
+
+    if (spec.controls) {
+      this.ctrls = document.createElement("div");
+      this.ctrls.className = "ctrls";
+      host.appendChild(this.ctrls);
+    }
+    if (spec.legend) {
+      const l = document.createElement("div");
+      l.className = "legend";
+      spec.legend.forEach((it) => {
+        const s = document.createElement("span");
+        const i = document.createElement("i");
+        i.style.background = it.c;
+        s.appendChild(i);
+        s.appendChild(document.createTextNode(it.t));
+        l.appendChild(s);
+      });
+      this.legendEl = l;
+      host.appendChild(l);
+    }
+
+    c.addEventListener("pointerdown", (e) => this.onDown(e));
+    c.addEventListener("pointermove", (e) => this.onMove(e));
+    c.addEventListener("pointerup", (e) => this.onUp(e));
+    c.addEventListener("pointercancel", (e) => this.onUp(e));
+    c.addEventListener("pointerleave", () => {
+      if (this.dragId === null) { this.hoverId = null; if (this.spec.onHover) this.spec.onHover(null, null, this); this.draw(); }
+    });
+    c.addEventListener("keydown", (e) => this.onKey(e));
+    c.addEventListener("focus", () => { this.hasFocus = true; this.draw(); });
+    c.addEventListener("blur", () => { this.hasFocus = false; this.draw(); });
+
+    if (spec.controls) spec.controls(this);
+
+    const ro = new ResizeObserver(() => this.resize());
+    ro.observe(host);
+    this.resize();
+
+    if ("IntersectionObserver" in window) {
+      new IntersectionObserver((es) => { this.visible = es[0].isIntersecting; }, { rootMargin: "120px" }).observe(host);
+    }
+    PANELS.push(this);
+  }
+
+  local(e) {
+    const r = this.canvas.getBoundingClientRect();
+    return { x: e.clientX - r.left, y: e.clientY - r.top };
+  }
+  handles() { return this.spec.handles ? (this.spec.handles(this) || []) : []; }
+  pick(x, y) {
+    const hs = this.handles();
+    let best = null, bd = Infinity;
+    for (const h of hs) {
+      const d = Math.hypot(x - h.x, y - h.y);
+      const r = (h.r || 9) + 12;
+      if (d < r && d < bd) { bd = d; best = h; }
+    }
+    return best;
+  }
+  onDown(e) {
+    this.canvas.focus({ preventScroll: true });
+    const p = this.local(e);
+    const h = this.pick(p.x, p.y);
+    this.touched = true;
+    if (h) {
+      this.dragId = h.id;
+      const hs = this.handles();
+      for (let i = 0; i < hs.length; i++) if (hs[i].id === h.id) this.focusIdx = i;
+      try { this.canvas.setPointerCapture(e.pointerId); } catch (err) {}
+      if (this.spec.onDrag) this.spec.onDrag(h.id, p.x, p.y, this);
+      e.preventDefault();
+    } else if (this.spec.onClick) {
+      this.spec.onClick(p.x, p.y, this);
+      e.preventDefault();
+    }
+    this.draw();
+  }
+  onMove(e) {
+    const p = this.local(e);
+    if (this.dragId !== null) {
+      if (this.spec.onDrag) this.spec.onDrag(this.dragId, p.x, p.y, this);
+      this.draw();
+      return;
+    }
+    const h = this.pick(p.x, p.y);
+    const id = h ? h.id : null;
+    let dirty = false;
+    if (id !== this.hoverId) { this.hoverId = id; dirty = true; }
+    this.canvas.style.cursor = h ? "grab" : (this.spec.cursor ? this.spec.cursor(p.x, p.y, this) : "default");
+    if (this.spec.onHover) { if (this.spec.onHover(p.x, p.y, this)) dirty = true; }
+    if (dirty) this.draw();
+  }
+  onUp(e) {
+    if (this.dragId !== null) {
+      try { this.canvas.releasePointerCapture(e.pointerId); } catch (err) {}
+      this.dragId = null;
+      this.draw();
+    }
+  }
+  onKey(e) {
+    const hs = this.handles();
+    if (!hs.length) return;
+    if (e.key === " " || e.key === "Enter") {
+      this.focusIdx = (this.focusIdx + 1) % hs.length;
+      this.touched = true;
+      e.preventDefault(); this.draw(); return;
+    }
+    const step = e.shiftKey ? 8 : 2;
+    let dx = 0, dy = 0;
+    if (e.key === "ArrowLeft") dx = -step;
+    else if (e.key === "ArrowRight") dx = step;
+    else if (e.key === "ArrowUp") dy = -step;
+    else if (e.key === "ArrowDown") dy = step;
+    else return;
+    e.preventDefault();
+    this.touched = true;
+    const h = hs[Math.min(this.focusIdx, hs.length - 1)];
+    if (this.spec.onDrag) this.spec.onDrag(h.id, h.x + dx, h.y + dy, this);
+    this.draw();
+  }
+
+  resize() {
+    const w = Math.max(160, Math.round(this.host.clientWidth));
+    const h = Math.round(this.spec.height ? this.spec.height(w) : w * 0.6);
+    if (w === this.W && h === this.H) { this.draw(); return; }
+    this.W = w; this.H = h;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2.5);
+    this.canvas.width = Math.round(w * dpr);
+    this.canvas.height = Math.round(h * dpr);
+    this.canvas.style.height = h + "px";
+    this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    if (this.spec.layout) this.spec.layout(this);
+    this.draw();
+  }
+  draw() {
+    const ctx = this.ctx;
+    ctx.save();
+    ctx.clearRect(0, 0, this.W, this.H);
+    ctx.fillStyle = P.panel;
+    ctx.fillRect(0, 0, this.W, this.H);
+    this.spec.draw(ctx, this.W, this.H, this);
+    ctx.restore();
+  }
+
+  /* A soft pulsing ring, shown on draggable handles until the reader
+     touches the figure for the first time. */
+  hint(ctx, x, y, r) {
+    if (this.touched || REDUCED || this.hintDone) return;
+    const age = performance.now() - this.t0;
+    if (age > 15000) { this.hintDone = true; return; }
+    const t = (age / 1500) % 1;
+    const e = 1 - Math.pow(1 - t, 2);
+    ctx.beginPath();
+    ctx.arc(x, y, r + 3 + e * 13, 0, TAU);
+    ctx.strokeStyle = alpha(P.inkMute, 0.45 * (1 - e));
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+  }
+  get animating() {
+    if (!this.visible) return false;
+    if (this.spec.animate) return true;
+    return !this.touched && !this.hintDone && !REDUCED && this.spec.handles !== undefined;
+  }
+
+  /* Handle puck with hover / drag / keyboard-focus affordances. */
+  puck(ctx, h, col) {
+    const r = h.r || 9;
+    const active = this.dragId === h.id;
+    const hovered = this.hoverId === h.id;
+    const hs = this.handles();
+    const kf = this.hasFocus && hs[Math.min(this.focusIdx, hs.length - 1)] &&
+      hs[Math.min(this.focusIdx, hs.length - 1)].id === h.id;
+    if (active || hovered || kf) {
+      ctx.beginPath(); ctx.arc(h.x, h.y, r + (active ? 9 : 6), 0, TAU);
+      ctx.fillStyle = alpha(col, active ? 0.24 : 0.14); ctx.fill();
+    }
+    if (kf) {
+      ctx.beginPath(); ctx.arc(h.x, h.y, r + 8, 0, TAU);
+      ctx.strokeStyle = col; ctx.lineWidth = 1.5; ctx.setLineDash([2, 3]); ctx.stroke(); ctx.setLineDash([]);
+    }
+    ctx.beginPath(); ctx.arc(h.x, h.y, r, 0, TAU);
+    ctx.fillStyle = P.panel; ctx.fill();
+    ctx.strokeStyle = col; ctx.lineWidth = 2.4; ctx.stroke();
+    this.hint(ctx, h.x, h.y, r);
+  }
+}
+
+function redrawAll() { for (const p of PANELS) { if (p.spec.layout) p.spec.layout(p); p.draw(); } }
+
+function tick() {
+  animPending = false;
+  let any = false;
+  for (const p of PANELS) if (p.animating) { p.draw(); any = true; }
+  if (any) request();
+}
+function request() { if (!animPending) { animPending = true; requestAnimationFrame(tick); } }
+
+/* ============================================================
+   Control widgets
+   ============================================================ */
+function ctrlRow(panel) { return panel.ctrls; }
+
+function mkSlider(panel, o) {
+  const wrap = document.createElement("div");
+  wrap.className = "ctrl";
+  if (o.flex) wrap.style.flex = o.flex;
+  const id = "s" + Math.random().toString(36).slice(2, 8);
+  const lab = document.createElement("label");
+  lab.textContent = o.label; lab.htmlFor = id;
+  if (o.color) lab.style.color = o.color;
+  const inp = document.createElement("input");
+  inp.type = "range"; inp.id = id;
+  inp.min = o.min; inp.max = o.max; inp.step = o.step; inp.value = o.value;
+  const val = document.createElement("span");
+  val.className = "val";
+  const show = () => { val.textContent = o.fmt ? o.fmt(parseFloat(inp.value)) : inp.value; };
+  inp.addEventListener("input", () => { show(); o.on(parseFloat(inp.value)); panel.touched = true; panel.draw(); });
+  show();
+  wrap.appendChild(lab); wrap.appendChild(inp); wrap.appendChild(val);
+  panel.ctrls.appendChild(wrap);
+  return { input: inp, set: (v) => { inp.value = v; show(); } };
+}
+
+function mkToggle(panel, o) {
+  const l = document.createElement("label");
+  l.className = "tgl";
+  const inp = document.createElement("input");
+  inp.type = "checkbox"; inp.checked = !!o.checked;
+  const box = document.createElement("span"); box.className = "box";
+  const txt = document.createElement("span"); txt.textContent = o.label;
+  l.appendChild(inp); l.appendChild(box); l.appendChild(txt);
+  inp.addEventListener("change", () => { o.on(inp.checked); panel.touched = true; panel.draw(); });
+  panel.ctrls.appendChild(l);
+  return { input: inp, set: (v) => { inp.checked = v; } };
+}
+
+function mkSeg(panel, o) {
+  const wrap = document.createElement("div");
+  wrap.className = "ctrl";
+  wrap.style.flex = o.flex || "0 0 auto";
+  if (o.label) {
+    const lab = document.createElement("span");
+    lab.style.cssText = "font-size:.75rem;letter-spacing:.035em;color:var(--ink-soft);font-weight:600;white-space:nowrap";
+    lab.textContent = o.label;
+    wrap.appendChild(lab);
+  }
+  const seg = document.createElement("div");
+  seg.className = "seg";
+  seg.setAttribute("role", "group");
+  const btns = o.options.map((op, i) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.textContent = op.label;
+    b.setAttribute("aria-pressed", String(i === (o.index || 0)));
+    b.addEventListener("click", () => {
+      btns.forEach((x) => x.setAttribute("aria-pressed", "false"));
+      b.setAttribute("aria-pressed", "true");
+      panel.touched = true;
+      o.on(op.id, i);
+      panel.draw();
+    });
+    seg.appendChild(b);
+    return b;
+  });
+  wrap.appendChild(seg);
+  panel.ctrls.appendChild(wrap);
+  return { set: (i) => { btns.forEach((x, j) => x.setAttribute("aria-pressed", String(j === i))); } };
+}
+
+function mkButton(panel, o) {
+  const b = document.createElement("button");
+  b.type = "button"; b.className = "btn"; b.textContent = o.label;
+  b.addEventListener("click", () => { o.on(); panel.draw(); });
+  panel.ctrls.appendChild(b);
+  return b;
+}
+
+function mkNote(panel, text) {
+  const n = document.createElement("p");
+  n.className = "ctrl-note";
+  n.textContent = text;
+  panel.ctrls.appendChild(n);
+  return n;
+}
+
+function mount(name, spec) {
+  const host = document.querySelector('[data-fig="' + name + '"]');
+  if (!host) return null;
+  return new Panel(host, spec);
+}
+
+/* ============================================================
+   The running example
+   ============================================================ */
+const TOKENS = ["the", "cat", "sat", "on", "the", "warm", "mat"];
+// Content direction (degrees) per token; identical words share a direction.
+const CONTENT_DEG = [180, 0, 240, 120, 180, 300, 30];
+const VOCAB = ["the", "cat", "sat", "on", "warm", "mat"];
+const VOCAB_DEG = [180, 0, 240, 120, 300, 30];
+const DELTA = 45; // degrees of rotation per token of position
+function contentVec(d) { return [Math.cos(rad(d)), Math.sin(rad(d))]; }
+
+/* ============================================================
+   Shared plot furniture
+   ============================================================ */
+function drawGrid(ctx, g) {
+  const { x, y, w, h, cx, cy, u, span } = g;
+  ctx.save();
+  ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip();
+  ctx.lineWidth = 1;
+  for (let i = -span * 2 - 2; i <= span * 2 + 2; i++) {
+    const v = i / 2;
+    const isMajor = i % 2 === 0;
+    ctx.strokeStyle = isMajor ? P.grid : alpha(P.grid, 0.5);
+    const px = Math.round(cx + v * u) + 0.5, py = Math.round(cy - v * u) + 0.5;
+    ctx.beginPath(); ctx.moveTo(px, y); ctx.lineTo(px, y + h); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x, py); ctx.lineTo(x + w, py); ctx.stroke();
+  }
+  ctx.strokeStyle = P.gridBold; ctx.lineWidth = 1;
+  const ax = Math.round(cx) + 0.5, ay = Math.round(cy) + 0.5;
+  ctx.beginPath(); ctx.moveTo(ax, y); ctx.lineTo(ax, y + h); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x, ay); ctx.lineTo(x + w, ay); ctx.stroke();
+  ctx.restore();
+}
+function plotFrame(ctx, g) {
+  ctx.strokeStyle = P.ruleSoft; ctx.lineWidth = 1;
+  ctx.strokeRect(Math.round(g.x) + 0.5, Math.round(g.y) + 0.5, Math.round(g.w) - 1, Math.round(g.h) - 1);
+}
+/* A handle-terminated vector: a plain stem, because the circle marks the tip.
+   Arrowheads are reserved for quantities the reader cannot drag. */
+function stem(ctx, x1, y1, x2, y2, col, w) {
+  ctx.strokeStyle = col; ctx.lineWidth = w; ctx.lineCap = "round";
+  ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+  ctx.lineCap = "butt";
+}
+
+/* ============================================================
+   Figure 1 — the dot product
+   ============================================================ */
+(function () {
+  const st = { a: [1.7, 0.8], b: [0.7, 1.55] };
+  const SPAN = 2.4;
+
+  function layout(p) {
+    const W = p.W, H = p.H;
+    const pad = 18;
+    const stacked = W < 560;
+    const plotSize = stacked ? Math.min(W - pad * 2, 320) : Math.min(H - pad * 2, W * 0.52);
+    const gx = stacked ? (W - plotSize) / 2 : pad;
+    const g = {
+      x: gx, y: pad, w: plotSize, h: plotSize,
+      cx: gx + plotSize / 2, cy: pad + plotSize / 2,
+      u: plotSize / (SPAN * 2), span: SPAN
+    };
+    p.g = g;
+    p.read = stacked
+      ? { x: pad + 2, y: pad + plotSize + 16, w: W - pad * 2 - 4, h: H - plotSize - pad * 2 - 16 }
+      : { x: pad + plotSize + 30, y: pad + 6, w: W - plotSize - pad * 2 - 30, h: H - pad * 2 };
+  }
+  const S = (p, v) => [p.g.cx + v[0] * p.g.u, p.g.cy - v[1] * p.g.u];
+  const D = (p, x, y) => [(x - p.g.cx) / p.g.u, (p.g.cy - y) / p.g.u];
+
+  mount("dot", {
+    aria: "Interactive plane with two draggable vectors and their dot product.",
+    height: (w) => (w < 560 ? 630 : 380),
+    layout,
+    handles(p) {
+      const a = S(p, st.a), b = S(p, st.b);
+      return [{ id: "a", x: a[0], y: a[1], r: 8 }, { id: "b", x: b[0], y: b[1], r: 8 }];
+    },
+    onDrag(id, x, y, p) {
+      let v = D(p, x, y);
+      const m = Math.hypot(v[0], v[1]);
+      const lim = SPAN - 0.14;
+      if (m > lim) v = [v[0] / m * lim, v[1] / m * lim];
+      else if (m < 0.2) v = [v[0] / (m || 1) * 0.2, v[1] / (m || 1) * 0.2];
+      st[id] = v;
+    },
+    draw(ctx, W, H, p) {
+      const g = p.g;
+      const a = st.a, b = st.b;
+      const dot = a[0] * b[0] + a[1] * b[1];
+      const ma = Math.hypot(a[0], a[1]), mb = Math.hypot(b[0], b[1]);
+      const cos = clamp(dot / (ma * mb), -1, 1);
+      const ang = Math.acos(cos);
+
+      drawGrid(ctx, g);
+      const os = S(p, [0, 0]), as = S(p, a), bs = S(p, b);
+      const ua = [a[0] / ma, a[1] / ma];
+      const projLen = dot / ma;
+      const fs = S(p, [ua[0] * projLen, ua[1] * projLen]);
+
+      ctx.save();
+      ctx.beginPath(); ctx.rect(g.x, g.y, g.w, g.h); ctx.clip();
+
+      // the infinite line through a
+      const far = SPAN * 2;
+      const l1 = S(p, [ua[0] * far, ua[1] * far]), l2 = S(p, [-ua[0] * far, -ua[1] * far]);
+      dashed(ctx, l1[0], l1[1], l2[0], l2[1], alpha(P.query, 0.3), 1, [4, 5]);
+      // b's perpendicular onto that line
+      dashed(ctx, bs[0], bs[1], fs[0], fs[1], alpha(P.inkMute, 0.65), 1.2, [3, 4]);
+
+      // the shadow, drawn beside the line so it is never hidden by a
+      const ax = as[0] - os[0], ay = as[1] - os[1];
+      const alen = Math.hypot(ax, ay) || 1;
+      const ux = ax / alen, uy = ay / alen;
+      let nx = -uy, ny = ux;
+      if (nx * (bs[0] - os[0]) + ny * (bs[1] - os[1]) > 0) { nx = -nx; ny = -ny; }
+      const OFF = 14;
+      const s0 = [os[0] + nx * OFF, os[1] + ny * OFF];
+      const s1 = [fs[0] + nx * OFF, fs[1] + ny * OFF];
+      dashed(ctx, os[0], os[1], s0[0], s0[1], alpha(P.inkMute, 0.5), 1, [2, 3]);
+      dashed(ctx, fs[0], fs[1], s1[0], s1[1], alpha(P.inkMute, 0.5), 1, [2, 3]);
+      ctx.strokeStyle = dot >= 0 ? P.weight : P.neutral;
+      ctx.lineWidth = 6; ctx.lineCap = "round";
+      ctx.beginPath(); ctx.moveTo(s0[0], s0[1]); ctx.lineTo(s1[0], s1[1]); ctx.stroke();
+      ctx.lineCap = "butt";
+
+      // angle arc, always the short way round
+      if (ma > 0.3 && mb > 0.3) {
+        const r0 = Math.min(38, g.u * Math.min(ma, mb) * 0.6);
+        const a0 = Math.atan2(-a[1], a[0]);
+        let dth = Math.atan2(-b[1], b[0]) - a0;
+        while (dth > Math.PI) dth -= TAU;
+        while (dth < -Math.PI) dth += TAU;
+        ctx.beginPath();
+        ctx.arc(g.cx, g.cy, r0, a0, a0 + dth, dth < 0);
+        ctx.strokeStyle = alpha(P.inkMute, 0.8); ctx.lineWidth = 1.2; ctx.stroke();
+        const mid = a0 + dth / 2;
+        label(ctx, "θ", g.cx + Math.cos(mid) * (r0 + 13), g.cy + Math.sin(mid) * (r0 + 13),
+          P.inkSoft, font(13, 600, SERIF));
+      }
+
+      stem(ctx, os[0], os[1], bs[0], bs[1], P.key, 2.6);
+      stem(ctx, os[0], os[1], as[0], as[1], P.query, 2.6);
+
+      // shadow label
+      const lm = [(s0[0] + s1[0]) / 2 + nx * 13, (s0[1] + s1[1]) / 2 + ny * 13];
+      if (Math.abs(projLen) > 0.35) {
+        label(ctx, "|b| cos θ", clamp(lm[0], g.x + 34, g.x + g.w - 34), clamp(lm[1], g.y + 10, g.y + g.h - 10),
+          dot >= 0 ? P.weight : P.neutral, font(10.5, 700, SERIF));
+      }
+      ctx.restore();
+      plotFrame(ctx, g);
+
+      label(ctx, "a", as[0] + (a[0] >= 0 ? 16 : -16), as[1] - 14, P.query, font(15, 700, SERIF));
+      label(ctx, "b", bs[0] + (b[0] >= 0 ? 16 : -16), bs[1] - 14, P.key, font(15, 700, SERIF));
+      p.puck(ctx, { x: as[0], y: as[1], r: 8, id: "a" }, P.query);
+      p.puck(ctx, { x: bs[0], y: bs[1], r: 8, id: "b" }, P.key);
+
+      // ---- readout ----
+      const r = p.read;
+      let y = r.y + 14;
+      label(ctx, "a · b", r.x, y, P.inkMute, font(10.5, 700), "left");
+      y += 30;
+      label(ctx, fmt(dot, 2), r.x, y, dot >= 0 ? P.weight : P.neutral, font(38, 600, MONO), "left");
+      y += 36;
+
+      const bw = Math.min(r.w - 6, 240), bh = 10, bx = r.x, by = y;
+      const maxv = SPAN * SPAN;
+      rr(ctx, bx, by, bw, bh, 5); ctx.fillStyle = P.sunken; ctx.fill();
+      const midx = bx + bw / 2;
+      const frac = clamp(dot / maxv, -1, 1) * (bw / 2);
+      rr(ctx, frac >= 0 ? midx : midx + frac, by, Math.abs(frac), bh, 5);
+      ctx.fillStyle = dot >= 0 ? P.weight : P.neutral; ctx.fill();
+      line(ctx, Math.round(midx) + 0.5, by - 4, Math.round(midx) + 0.5, by + bh + 4, P.rule, 1);
+      label(ctx, "negative", bx, by + bh + 13, P.inkMute, font(9.5, 500), "left");
+      label(ctx, "0", midx, by + bh + 13, P.inkMute, font(9.5, 600));
+      label(ctx, "positive", bx + bw, by + bh + 13, P.inkMute, font(9.5, 500), "right");
+      y = by + bh + 40;
+
+      const rows = [
+        ["|a|", fmt(ma, 2), P.query],
+        ["|b|", fmt(mb, 2), P.key],
+        ["cos θ", fmt(cos, 2), P.inkSoft],
+        ["θ", fmt(deg(ang), 0) + "°", P.inkSoft]
+      ];
+      const colw = Math.min((r.w - 6) / 2, 132);
+      rows.forEach((row, i) => {
+        const rx = r.x + (i % 2) * colw;
+        const ry = y + Math.floor(i / 2) * 26;
+        label(ctx, row[0], rx, ry, P.inkMute, font(12, 500, SERIF), "left");
+        label(ctx, row[1], rx + colw - 22, ry, row[2], font(14, 600, MONO), "right");
+      });
+      y += 60;
+      line(ctx, r.x, Math.round(y - 14) + 0.5, r.x + Math.min(r.w - 6, 240), Math.round(y - 14) + 0.5, P.ruleSoft, 1);
+      ctx.font = font(12.5, 500, SERIF);
+      let tx = r.x;
+      const seg = [
+        [fmt(ma, 2), P.query], [" × ", P.inkMute], [fmt(mb, 2), P.key],
+        [" × ", P.inkMute], [fmt(cos, 2), P.inkSoft], ["  =  ", P.inkMute], [fmt(dot, 2), P.weight]
+      ];
+      seg.forEach((sgm) => {
+        label(ctx, sgm[0], tx, y + 4, sgm[1], font(12.5, 600, MONO), "left");
+        ctx.font = font(12.5, 600, MONO);
+        tx += ctx.measureText(sgm[0]).width;
+      });
+      label(ctx, "|a|  ×  |b|  ×  cos θ", r.x, y + 22, P.inkMute, font(10, 500, SERIF), "left");
+      const verdict = Math.abs(cos) < 0.09 ? "perpendicular — they say nothing about each other"
+        : cos > 0 ? "they lean the same way" : "they lean apart";
+      label(ctx, verdict, r.x, y + 50, dot >= 0 ? P.weight : P.neutral, font(11.5, 600), "left");
+    }
+  });
+})();
+
+/* ============================================================
+   Figure 2 — one query, many keys
+   ============================================================ */
+(function () {
+  const st = { q: [1.3, 0.6] };
+  const SPAN = 1.75;
+  const keys = VOCAB.map((w, i) => ({ w: w, v: contentVec(VOCAB_DEG[i]) }));
+
+  function layout(p) {
+    const W = p.W, H = p.H, pad = 18;
+    const stacked = W < 560;
+    const size = stacked ? Math.min(W - pad * 2, 310) : Math.min(H - pad * 2, W * 0.47);
+    const gx = stacked ? (W - size) / 2 : pad;
+    p.g = { x: gx, y: pad, w: size, h: size, cx: gx + size / 2, cy: pad + size / 2, u: size / (SPAN * 2), span: SPAN };
+    p.bars = stacked
+      ? { x: pad, y: pad + size + 20, w: W - pad * 2, h: H - size - pad * 2 - 20 }
+      : { x: pad + size + 28, y: pad + 8, w: W - size - pad * 2 - 28, h: H - pad * 2 - 16 };
+  }
+  const S = (p, v) => [p.g.cx + v[0] * p.g.u, p.g.cy - v[1] * p.g.u];
+
+  mount("keys", {
+    aria: "A draggable query vector scored against six word vectors.",
+    height: (w) => (w < 560 ? 600 : 360),
+    layout,
+    handles(p) { const s = S(p, st.q); return [{ id: "q", x: s[0], y: s[1], r: 8 }]; },
+    onDrag(id, x, y, p) {
+      let v = [(x - p.g.cx) / p.g.u, (p.g.cy - y) / p.g.u];
+      const m = Math.hypot(v[0], v[1]);
+      const lim = SPAN - 0.12;
+      if (m > lim) v = [v[0] / m * lim, v[1] / m * lim];
+      else if (m < 0.14) v = [v[0] / (m || 1) * 0.14, v[1] / (m || 1) * 0.14];
+      st.q = v;
+    },
+    draw(ctx, W, H, p) {
+      const g = p.g;
+      const scores = keys.map((k) => st.q[0] * k.v[0] + st.q[1] * k.v[1]);
+      let top = 0;
+      for (let i = 1; i < scores.length; i++) if (scores[i] > scores[top]) top = i;
+
+      drawGrid(ctx, g);
+      ctx.save();
+      ctx.beginPath(); ctx.rect(g.x, g.y, g.w, g.h); ctx.clip();
+      ctx.beginPath(); ctx.arc(g.cx, g.cy, g.u, 0, TAU);
+      ctx.strokeStyle = alpha(P.key, 0.22); ctx.lineWidth = 1; ctx.stroke();
+      keys.forEach((k, i) => {
+        const s = S(p, k.v);
+        const isTop = i === top;
+        arrow(ctx, g.cx, g.cy, s[0], s[1], isTop ? P.key : alpha(P.key, 0.4), isTop ? 2.4 : 1.6);
+      });
+      const qs = S(p, st.q);
+      stem(ctx, g.cx, g.cy, qs[0], qs[1], P.query, 2.8);
+      ctx.restore();
+
+      keys.forEach((k, i) => {
+        const s = S(p, k.v);
+        const lx = g.cx + (s[0] - g.cx) * 1.26, ly = g.cy + (s[1] - g.cy) * 1.26;
+        label(ctx, k.w, clamp(lx, g.x + 16, g.x + g.w - 16), clamp(ly, g.y + 10, g.y + g.h - 10),
+          i === top ? P.key : P.inkMute, font(11.5, i === top ? 700 : 500, MONO));
+      });
+      plotFrame(ctx, g);
+      label(ctx, "q", qs[0] + (st.q[0] >= 0 ? 15 : -15), qs[1] - 13, P.query, font(15, 700, SERIF));
+      p.puck(ctx, { x: qs[0], y: qs[1], r: 8, id: "q" }, P.query);
+
+      // ---- score bars: word | bar | number, in three fixed columns ----
+      const b = p.bars;
+      label(ctx, "q · k", b.x, b.y + 2, P.inkMute, font(10.5, 700), "left");
+      label(ctx, "for every word", b.x + 40, b.y + 2, P.inkMute, font(10.5, 500), "left");
+      const n = keys.length;
+      const rowH = Math.min(34, (b.h - 30) / n);
+      const labR = b.x + 46;
+      const numR = b.x + b.w;
+      const barX = labR + 12, barW = Math.max(60, numR - 54 - barX);
+      const zx = barX + barW * 0.38;
+      const u = barW * 0.38 / SPAN;
+      const y0 = b.y + 26;
+      keys.forEach((k, i) => {
+        const y = y0 + rowH * i + rowH / 2;
+        const isTop = i === top;
+        label(ctx, k.w, labR, y, isTop ? P.ink : P.inkMute, font(11.5, isTop ? 700 : 500, MONO), "right");
+        const w = clamp(scores[i] * u, -barW * 0.38, barW * 0.62);
+        const h = Math.max(10, rowH * 0.44);
+        ctx.globalAlpha = isTop ? 1 : 0.5;
+        rr(ctx, w >= 0 ? zx : zx + w, y - h / 2, Math.max(1.5, Math.abs(w)), h, 3);
+        ctx.fillStyle = scores[i] >= 0 ? P.key : P.neutral; ctx.fill();
+        ctx.globalAlpha = 1;
+        label(ctx, fmt(scores[i], 2), numR, y, isTop ? P.ink : P.inkMute, font(11.5, isTop ? 700 : 500, MONO), "right");
+      });
+      line(ctx, Math.round(zx) + 0.5, y0 + 2, Math.round(zx) + 0.5, y0 + rowH * n - 2, P.rule, 1);
+      label(ctx, "0", zx, y0 + rowH * n + 11, P.inkMute, font(9.5, 600));
+      label(ctx, "highest: " + keys[top].w, numR, y0 + rowH * n + 11, P.key, font(10.5, 700, MONO), "right");
+    }
+  });
+})();
+
+/* ============================================================
+   Figure 3 — query and key lenses
+   ============================================================ */
+(function () {
+  const st = { phiQ: -34, sQ: 1.9, phiK: 18, sK: 1.35, ask: 5 };
+  const words = VOCAB.map((w, i) => ({ w: w, v: contentVec(VOCAB_DEG[i]) }));
+
+  function mapv(v, phi, s) {
+    const x = v[0] * s, y = v[1] / s;
+    const c = Math.cos(rad(phi)), si = Math.sin(rad(phi));
+    return [x * c - y * si, x * si + y * c];
+  }
+  function geom(W) {
+    const stacked = W < 600, pad = 16;
+    const size = stacked ? Math.min(W - pad * 2, 270) : Math.min((W - pad * 2 - 26) / 2, 288);
+    return { stacked, pad, size };
+  }
+  function layout(p) {
+    const G = geom(p.W), W = p.W;
+    p.gs = [];
+    for (let i = 0; i < 2; i++) {
+      const x = G.stacked ? (W - G.size) / 2 : (W - G.size * 2 - 26) / 2 + i * (G.size + 26);
+      const y = 34 + (G.stacked ? i * (G.size + 40) : 0);
+      p.gs.push({ x, y, w: G.size, h: G.size, cx: x + G.size / 2, cy: y + G.size / 2, u: G.size / 5.4, span: 2.7 });
+    }
+    p.barsY = p.gs[1].y + G.size + 44;
+  }
+
+  mount("proj", {
+    aria: "Word vectors seen through a query lens and a key lens, and the resulting scores.",
+    height: (w) => {
+      const G = geom(w);
+      return 34 + (G.stacked ? G.size * 2 + 40 : G.size) + 44 + 66 + 92;
+    },
+    controls(p) {
+      mkSlider(p, { label: "query rotate", color: "var(--query)", min: -180, max: 180, step: 1, value: st.phiQ, fmt: (v) => fmt(v, 0) + "°", on: (v) => st.phiQ = v });
+      mkSlider(p, { label: "query stretch", color: "var(--query)", min: 0.5, max: 2.6, step: 0.01, value: st.sQ, fmt: (v) => fmt(v, 2), on: (v) => st.sQ = v });
+      mkSlider(p, { label: "key rotate", color: "var(--key)", min: -180, max: 180, step: 1, value: st.phiK, fmt: (v) => fmt(v, 0) + "°", on: (v) => st.phiK = v });
+      mkSlider(p, { label: "key stretch", color: "var(--key)", min: 0.5, max: 2.6, step: 0.01, value: st.sK, fmt: (v) => fmt(v, 2), on: (v) => st.sK = v });
+      mkSeg(p, {
+        label: "asking:", flex: "1 1 100%",
+        options: words.map((w, i) => ({ id: i, label: w.w })),
+        index: st.ask,
+        on: (id) => st.ask = id
+      });
+    },
+    layout,
+    draw(ctx, W, H, p) {
+      const lens = [
+        { phi: st.phiQ, s: st.sQ, col: P.query, name: "query lens", sub: "Q" },
+        { phi: st.phiK, s: st.sK, col: P.key, name: "key lens", sub: "K" }
+      ];
+      lens.forEach((L, li) => {
+        const g = p.gs[li];
+        ctx.save();
+        ctx.beginPath(); ctx.rect(g.x, g.y, g.w, g.h); ctx.clip();
+        ctx.lineWidth = 1;
+        for (let i = -3; i <= 3; i++) {
+          for (const dir of [0, 1]) {
+            const A = mapv(dir === 0 ? [i, -3] : [-3, i], L.phi, L.s);
+            const B = mapv(dir === 0 ? [i, 3] : [3, i], L.phi, L.s);
+            ctx.strokeStyle = i === 0 ? P.gridBold : P.grid;
+            ctx.beginPath();
+            ctx.moveTo(g.cx + A[0] * g.u, g.cy - A[1] * g.u);
+            ctx.lineTo(g.cx + B[0] * g.u, g.cy - B[1] * g.u);
+            ctx.stroke();
+          }
+        }
+        ctx.beginPath();
+        for (let t = 0; t <= 72; t++) {
+          const th = t / 72 * TAU;
+          const e = mapv([Math.cos(th), Math.sin(th)], L.phi, L.s);
+          const X = g.cx + e[0] * g.u, Y = g.cy - e[1] * g.u;
+          if (t === 0) ctx.moveTo(X, Y); else ctx.lineTo(X, Y);
+        }
+        ctx.strokeStyle = alpha(L.col, 0.32); ctx.lineWidth = 1.2; ctx.stroke();
+        words.forEach((wd, i) => {
+          const e = mapv(wd.v, L.phi, L.s);
+          const X = g.cx + e[0] * g.u, Y = g.cy - e[1] * g.u;
+          const hot = i === st.ask;
+          arrow(ctx, g.cx, g.cy, X, Y, hot ? L.col : alpha(L.col, 0.34), hot ? 2.5 : 1.5);
+        });
+        ctx.restore();
+        words.forEach((wd, i) => {
+          const e = mapv(wd.v, L.phi, L.s);
+          const m = Math.hypot(e[0], e[1]) || 1;
+          const X = g.cx + (e[0] + e[0] / m * 0.42) * g.u, Y = g.cy - (e[1] + e[1] / m * 0.42) * g.u;
+          const hot = i === st.ask;
+          label(ctx, wd.w, clamp(X, g.x + 16, g.x + g.w - 16), clamp(Y, g.y + 9, g.y + g.h - 9),
+            hot ? L.col : P.inkMute, font(11, hot ? 700 : 500, MONO));
+        });
+        plotFrame(ctx, g);
+        label(ctx, L.name, g.x, g.y - 13, L.col, font(10, 700), "left");
+        ctx.font = font(10, 700);
+        const tw = ctx.measureText(L.name + "   W").width;
+        label(ctx, "W", g.x + ctx.measureText(L.name + "   ").width, g.y - 13, L.col, font(11, 700, SERIF), "left");
+        label(ctx, L.sub, g.x + tw + 1, g.y - 10, L.col, font(8.5, 700, SERIF), "left");
+      });
+
+      const qv = mapv(words[st.ask].v, st.phiQ, st.sQ);
+      const scores = words.map((wd) => {
+        const kv = mapv(wd.v, st.phiK, st.sK);
+        return qv[0] * kv[0] + qv[1] * kv[1];
+      });
+      let top = 0;
+      for (let i = 1; i < scores.length; i++) if (scores[i] > scores[top]) top = i;
+
+      const bx = 24, by = p.barsY, bw = W - 48, bh = 66;
+      const zeroY = by + bh / 2;
+      label(ctx, "score", bx, by - 16, P.inkMute, font(10, 700), "left");
+      label(ctx, "s ( " + words[st.ask].w + " → · )", bx + 38, by - 16, P.inkSoft, font(10.5, 600, MONO), "left");
+      const cw = bw / words.length;
+      const maxAbs = Math.max(0.4, ...scores.map(Math.abs));
+      words.forEach((wd, i) => {
+        const cx = bx + cw * i + cw / 2;
+        const h = (scores[i] / maxAbs) * (bh / 2 - 5);
+        const w2 = Math.min(cw - 18, 52);
+        rr(ctx, cx - w2 / 2, h >= 0 ? zeroY - h : zeroY, w2, Math.max(1.5, Math.abs(h)), 3);
+        ctx.fillStyle = scores[i] >= 0
+          ? (i === top ? P.key : alpha(P.key, 0.42))
+          : (i === top ? P.neutral : alpha(P.neutral, 0.38));
+        ctx.fill();
+        label(ctx, wd.w, cx, by + bh + 24, i === top ? P.ink : P.inkMute, font(11, i === top ? 700 : 500, MONO));
+        label(ctx, fmt(scores[i], 2), cx, h >= 0 ? zeroY - h - 10 : zeroY - h + 10,
+          i === top ? P.ink : P.inkMute, font(10.5, 600, MONO));
+      });
+      line(ctx, bx, Math.round(zeroY) + 0.5, bx + bw, Math.round(zeroY) + 0.5, P.rule, 1);
+
+      // asymmetry
+      const kq = mapv(words[st.ask].v, st.phiK, st.sK);
+      const qt = mapv(words[top].v, st.phiQ, st.sQ);
+      const back = qt[0] * kq[0] + qt[1] * kq[1];
+      const aw = words[st.ask].w, tw2 = words[top].w;
+      const ry = by + bh + 50;
+      const msg1 = aw + " → " + tw2 + "  =  " + fmt(scores[top], 2);
+      const msg2 = tw2 + " → " + aw + "  =  " + fmt(back, 2);
+      ctx.font = font(12, 600, MONO);
+      const w1 = ctx.measureText(msg1).width, gap = 26;
+      const totw = w1 + gap + ctx.measureText(msg2).width;
+      const sx = W / 2 - totw / 2;
+      label(ctx, msg1, sx, ry, P.key, font(12, 600, MONO), "left");
+      label(ctx, msg2, sx + w1 + gap, ry, P.neutral, font(12, 600, MONO), "left");
+      label(ctx, Math.abs(scores[top] - back) < 0.02
+        ? "symmetric — these two lenses happen to agree"
+        : "the same pair, scored two different ways: the relation has a direction",
+        W / 2, ry + 20, P.inkMute, font(10.5, 500), "center");
+    }
+  });
+})();
+
+/* ============================================================
+   Figure 4 — dot products grow like sqrt(d)
+   ============================================================ */
+(function () {
+  const DIMS = [1, 2, 4, 8, 16, 32, 64, 128];
+  const NS = 90;
+  const rng = mulberry(20240617);
+  const SAMPLES = DIMS.map((d) => {
+    const out = [];
+    for (let s = 0; s < NS; s++) {
+      let acc = 0;
+      for (let i = 0; i < d; i++) acc += gaussPair(rng) * gaussPair(rng);
+      out.push(acc);
+    }
+    return out;
+  });
+  const jit = [];
+  for (let i = 0; i < NS; i++) jit.push(rng() * 2 - 1);
+
+  const st = { scaled: false, sel: 5 };
+  const H = 448;
+
+  function layout(p) {
+    const W = p.W, padL = 50, padR = 18;
+    p.plot = { x: padL, y: 34, w: W - padL - padR, h: 232 };
+    p.strip = { x: padL, y: 348, w: W - padL - padR, h: 58 };
+  }
+  function colX(p, i) { return p.plot.x + p.plot.w * ((i + 0.5) / DIMS.length); }
+
+  mount("scale", {
+    aria: "Scatter of random dot products against dimension, with and without the one-over-root-d scaling.",
+    height: () => H,
+    layout,
+    controls(p) {
+      mkToggle(p, { label: "divide by √d", checked: st.scaled, on: (v) => st.scaled = v });
+      const seg = mkSeg(p, {
+        label: "look at d =", options: DIMS.map((d, i) => ({ id: i, label: String(d) })), index: st.sel,
+        on: (i) => st.sel = i
+      });
+      p.segSet = seg.set;
+    },
+    onClick(x, y, p) {
+      if (y > p.plot.y + p.plot.h + 24) return;
+      const i = Math.floor((x - p.plot.x) / p.plot.w * DIMS.length);
+      if (i >= 0 && i < DIMS.length) { st.sel = i; p.segSet(i); }
+    },
+    cursor(x, y, p) { return y < p.plot.y + p.plot.h + 24 ? "pointer" : "default"; },
+    draw(ctx, W, Hh, p) {
+      const g = p.plot;
+      const scale = (d) => st.scaled ? 1 / Math.sqrt(d) : 1;
+      const yMax = st.scaled ? 3.2 : 18;
+      const Y = (v) => g.y + g.h / 2 - (v / yMax) * (g.h / 2 - 6);
+      const ticks = st.scaled ? [-3, -2, -1, 0, 1, 2, 3] : [-15, -10, -5, 0, 5, 10, 15];
+
+      ctx.save();
+      ctx.beginPath(); ctx.rect(g.x, g.y, g.w, g.h); ctx.clip();
+      ticks.forEach((t) => {
+        const yy = Math.round(Y(t)) + 0.5;
+        line(ctx, g.x, yy, g.x + g.w, yy, t === 0 ? P.gridBold : P.grid, 1);
+      });
+      for (const sgn of [1, -1]) {
+        ctx.beginPath();
+        for (let i = 0; i < DIMS.length; i++) {
+          const x = colX(p, i), v = sgn * Math.sqrt(DIMS[i]) * scale(DIMS[i]);
+          if (i === 0) ctx.moveTo(x, Y(v)); else ctx.lineTo(x, Y(v));
+        }
+        ctx.strokeStyle = alpha(P.query, 0.9); ctx.lineWidth = 1.6;
+        ctx.setLineDash([5, 4]); ctx.stroke(); ctx.setLineDash([]);
+      }
+      DIMS.forEach((d, i) => {
+        const x = colX(p, i);
+        const hot = i === st.sel;
+        const sp = Math.min(22, g.w / DIMS.length * 0.34);
+        SAMPLES[i].forEach((v, s) => {
+          const yy = Y(v * scale(d));
+          if (yy < g.y - 4 || yy > g.y + g.h + 4) return;
+          ctx.beginPath();
+          ctx.arc(x + jit[s] * sp, yy, hot ? 2.2 : 1.7, 0, TAU);
+          ctx.fillStyle = hot ? alpha(P.key, 0.9) : alpha(P.key, 0.28);
+          ctx.fill();
+        });
+      });
+      ctx.restore();
+      plotFrame(ctx, g);
+
+      ticks.forEach((t) => {
+        label(ctx, String(t), g.x - 10, Y(t), P.inkMute, font(10, 500, MONO), "right");
+      });
+      DIMS.forEach((d, i) => {
+        const hot = i === st.sel;
+        label(ctx, String(d), colX(p, i), g.y + g.h + 16, hot ? P.ink : P.inkMute, font(10.5, hot ? 700 : 500, MONO));
+      });
+      label(ctx, "dimension  d", g.x + g.w / 2, g.y + g.h + 34, P.inkMute, font(10, 600));
+      label(ctx, st.scaled ? "q · k  ÷  √d" : "q · k", g.x - 10, g.y - 14, P.inkMute, font(10.5, 700, MONO), "left");
+      const lastV = Math.sqrt(DIMS[DIMS.length - 1]) * scale(DIMS[DIMS.length - 1]);
+      label(ctx, "+√d", colX(p, DIMS.length - 1) - 6, clamp(Y(lastV) - 13, g.y + 9, g.y + g.h - 9),
+        P.query, font(10.5, 700, MONO), "right");
+
+      // one row of scores at the chosen d
+      const s2 = p.strip;
+      const d = DIMS[st.sel];
+      const raw = SAMPLES[st.sel].slice(0, 7).map((v) => v * scale(d));
+      const wts = softmax(raw);
+      const maxw = Math.max.apply(null, wts);
+      label(ctx, "seven scores at d = " + d + ", pushed through softmax", s2.x, s2.y - 16, P.inkMute, font(10, 700), "left");
+      label(ctx, maxw > 0.9 ? "saturated — one word takes everything" : "a usable spread of attention",
+        s2.x + s2.w, s2.y - 16, maxw > 0.9 ? P.query : P.value, font(10, 700), "right");
+      const cw = s2.w / 7;
+      wts.forEach((w, i) => {
+        const x = s2.x + cw * i + 3, bw = cw - 6;
+        rr(ctx, x, s2.y, bw, s2.h, 4); ctx.fillStyle = P.sunken; ctx.fill();
+        const hh = s2.h * w;
+        rr(ctx, x, s2.y + s2.h - hh, bw, hh, 4);
+        ctx.fillStyle = alpha(P.weight, 0.35 + 0.65 * w); ctx.fill();
+        label(ctx, (w * 100).toFixed(w > 0.995 ? 1 : 0) + "%", x + bw / 2, s2.y + s2.h + 13,
+          w > 0.5 ? P.weight : P.inkMute, font(10, w > 0.5 ? 700 : 500, MONO));
+      });
+    }
+  });
+})();
+
+/* ============================================================
+   Figure 5 — softmax
+   ============================================================ */
+(function () {
+  const st = { s: [2.1, 0.4, -1.3, 1.2, -0.2, 3.0], temp: 1, shift: 0 };
+  const base = st.s.slice();
+  const RANGE = 5;
+  const N = 6;
+
+  function layout(p) {
+    const W = p.W, H = p.H, padL = 42, padR = 20;
+    const topH = Math.round((H - 74) * 0.45);
+    p.top = { x: padL, y: 18, w: W - padL - padR, h: topH };
+    p.bot = { x: padL, y: 18 + topH + 42, w: W - padL - padR, h: H - (18 + topH + 42) - 34 };
+  }
+  const colx = (g, i) => g.x + g.w * ((i + 0.5) / N);
+  const sy = (g, v) => g.y + g.h / 2 - (v / RANGE) * (g.h / 2 - 10);
+
+  mount("softmax", {
+    aria: "Six draggable scores and the softmax weights they produce.",
+    height: (w) => (w < 520 ? 440 : 410),
+    layout,
+    controls(p) {
+      p.tempC = mkSlider(p, { label: "temperature", min: 0.15, max: 3, step: 0.01, value: st.temp, fmt: (v) => "×" + fmt(v, 2), on: (v) => st.temp = v });
+      p.shiftC = mkSlider(p, { label: "shift all", min: -4, max: 4, step: 0.05, value: st.shift, fmt: (v) => fmt(v, 2), on: (v) => st.shift = v });
+      mkButton(p, {
+        label: "Reset", on: () => {
+          st.s = base.slice(); st.temp = 1; st.shift = 0;
+          p.tempC.set(1); p.shiftC.set(0);
+        }
+      });
+    },
+    handles(p) {
+      return st.s.map((v, i) => ({ id: i, x: colx(p.top, i), y: sy(p.top, clamp(v + st.shift, -RANGE, RANGE)), r: 8 }));
+    },
+    onDrag(id, x, y, p) {
+      const g = p.top;
+      const v = ((g.y + g.h / 2) - y) / (g.h / 2 - 10) * RANGE;
+      st.s[id] = clamp(v - st.shift, -RANGE, RANGE);
+    },
+    draw(ctx, W, H, p) {
+      const g = p.top, b = p.bot;
+      const eff = st.s.map((v) => clamp(v + st.shift, -RANGE, RANGE) * st.temp);
+      const w = softmax(eff);
+      const ticks = [-4, -2, 0, 2, 4];
+
+      ctx.save();
+      ctx.beginPath(); ctx.rect(g.x, g.y, g.w, g.h); ctx.clip();
+      ticks.forEach((t) => {
+        const yy = Math.round(sy(g, t)) + 0.5;
+        line(ctx, g.x, yy, g.x + g.w, yy, t === 0 ? P.gridBold : P.grid, 1);
+      });
+      st.s.forEach((v0, i) => {
+        const v = clamp(v0 + st.shift, -RANGE, RANGE);
+        const x = colx(g, i);
+        stem(ctx, x, sy(g, 0), x, sy(g, v), alpha(P.key, 0.5), 3);
+      });
+      ctx.restore();
+      plotFrame(ctx, g);
+      ticks.forEach((t) => label(ctx, String(t), g.x - 9, sy(g, t), P.inkMute, font(10, 500, MONO), "right"));
+      label(ctx, "scores  s", g.x - 9, g.y - 8, P.key, font(10.5, 700), "left");
+      st.s.forEach((v0, i) => {
+        const v = clamp(v0 + st.shift, -RANGE, RANGE);
+        const x = colx(g, i);
+        p.puck(ctx, { x: x, y: sy(g, v), r: 8, id: i }, P.key);
+        label(ctx, fmt(v, 1), x + 18, sy(g, v), P.inkSoft, font(11, 600, MONO), "left");
+      });
+
+      const midY = g.y + g.h + 21;
+      line(ctx, g.x, Math.round(midY) + 0.5, g.x + g.w, Math.round(midY) + 0.5, P.ruleSoft, 1);
+      const opTxt = st.temp === 1
+        ? "exp( s )   ÷   Σ exp( s )"
+        : "exp( " + fmt(st.temp, 2) + " · s )   ÷   Σ exp( " + fmt(st.temp, 2) + " · s )";
+      ctx.font = font(11.5, 600, SERIF);
+      const tw = ctx.measureText(opTxt).width;
+      ctx.fillStyle = P.panel;
+      ctx.fillRect(W / 2 - tw / 2 - 12, midY - 10, tw + 24, 20);
+      label(ctx, opTxt, W / 2, midY, P.inkSoft, font(11.5, 600, SERIF));
+
+      ctx.save();
+      ctx.beginPath(); ctx.rect(b.x, b.y, b.w, b.h); ctx.clip();
+      for (const t of [0, 0.25, 0.5, 0.75, 1]) {
+        const yy = Math.round(b.y + b.h - t * b.h) + 0.5;
+        line(ctx, b.x, yy, b.x + b.w, yy, t === 0 ? P.gridBold : P.grid, 1);
+      }
+      ctx.restore();
+      for (const t of [0, 0.5, 1]) {
+        label(ctx, t === 0 ? "0" : t === 1 ? "1" : ".5", b.x - 9, b.y + b.h - t * b.h, P.inkMute, font(10, 500, MONO), "right");
+      }
+      w.forEach((wi, i) => {
+        const x = colx(b, i), bw = Math.min(50, b.w / N - 14);
+        const hh = Math.max(1.5, wi * b.h);
+        rr(ctx, x - bw / 2, b.y + b.h - hh, bw, hh, 4);
+        ctx.fillStyle = P.weight; ctx.globalAlpha = 0.35 + 0.65 * wi; ctx.fill(); ctx.globalAlpha = 1;
+        label(ctx, (wi * 100).toFixed(wi >= 0.995 ? 1 : 0) + "%", x, b.y + b.h - hh - 12,
+          wi > 0.3 ? P.weight : P.inkMute, font(10.5, wi > 0.3 ? 700 : 500, MONO));
+        label(ctx, "w" + (i + 1), x, b.y + b.h + 16, P.inkMute, font(10.5, 500, MONO));
+      });
+      plotFrame(ctx, b);
+      label(ctx, "weights  α", b.x - 9, b.y - 8, P.weight, font(10.5, 700), "left");
+      label(ctx, "Σ = 1.00", b.x + b.w, b.y - 8, P.inkMute, font(10.5, 600, MONO), "right");
+    }
+  });
+})();
+
+/* ============================================================
+   Figure 6 — values and the weighted average
+   ============================================================ */
+(function () {
+  const names = ["cat", "sat", "warm", "mat"];
+  const st = {
+    v: [[1.35, 0.45], [-0.9, 1.15], [0.25, -1.35], [-1.2, -0.55]],
+    cuts: [0.42, 0.63, 0.84]
+  };
+  const SPAN = 2.0;
+  const SHADE = [0.9, 0.68, 0.48, 0.3];
+
+  function weights() {
+    const c = st.cuts;
+    return [c[0], c[1] - c[0], c[2] - c[1], 1 - c[2]];
+  }
+  function layout(p) {
+    const W = p.W, H = p.H, pad = 18;
+    const stacked = W < 580;
+    const size = stacked ? Math.min(W - pad * 2, 300) : Math.min(H - pad * 2, W * 0.5);
+    const gx = stacked ? (W - size) / 2 : pad;
+    p.g = { x: gx, y: pad, w: size, h: size, cx: gx + size / 2, cy: pad + size / 2, u: size / (SPAN * 2), span: SPAN };
+    p.r = stacked
+      ? { x: pad + 4, y: pad + size + 26, w: W - pad * 2 - 8 }
+      : { x: pad + size + 32, y: Math.max(pad + 12, (H - 216) / 2), w: W - size - pad * 2 - 32 };
+    p.bar = { x: p.r.x, y: p.r.y + 18, w: p.r.w, h: 34 };
+  }
+  const S = (p, v) => [p.g.cx + v[0] * p.g.u, p.g.cy - v[1] * p.g.u];
+
+  function hull(pts) {
+    const ps = pts.map((q) => ({ x: q[0], y: q[1] })).sort((a, b) => a.x - b.x || a.y - b.y);
+    const cross = (o, a, b) => (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x);
+    const lower = [], upper = [];
+    for (const q of ps) { while (lower.length >= 2 && cross(lower[lower.length - 2], lower[lower.length - 1], q) <= 0) lower.pop(); lower.push(q); }
+    for (let i = ps.length - 1; i >= 0; i--) { const q = ps[i]; while (upper.length >= 2 && cross(upper[upper.length - 2], upper[upper.length - 1], q) <= 0) upper.pop(); upper.push(q); }
+    lower.pop(); upper.pop();
+    return lower.concat(upper);
+  }
+
+  mount("values", {
+    aria: "Four draggable value vectors, adjustable weights, and their weighted average.",
+    height: (w) => (w < 580 ? 600 : 400),
+    layout,
+    handles(p) {
+      const hs = st.v.map((v, i) => { const s = S(p, v); return { id: "v" + i, x: s[0], y: s[1], r: 8 }; });
+      const b = p.bar;
+      st.cuts.forEach((c, i) => hs.push({ id: "c" + i, x: b.x + b.w * c, y: b.y + b.h / 2, r: 7 }));
+      return hs;
+    },
+    onDrag(id, x, y, p) {
+      if (id[0] === "v") {
+        const i = +id.slice(1);
+        st.v[i] = [
+          clamp((x - p.g.cx) / p.g.u, -SPAN + 0.14, SPAN - 0.14),
+          clamp((p.g.cy - y) / p.g.u, -SPAN + 0.14, SPAN - 0.14)
+        ];
+      } else {
+        const i = +id.slice(1), b = p.bar;
+        const f = (x - b.x) / b.w;
+        const lo = i === 0 ? 0.02 : st.cuts[i - 1] + 0.02;
+        const hi = i === 2 ? 0.98 : st.cuts[i + 1] - 0.02;
+        st.cuts[i] = clamp(f, lo, hi);
+      }
+    },
+    draw(ctx, W, H, p) {
+      const g = p.g, w = weights();
+      const out = [0, 0];
+      st.v.forEach((v, i) => { out[0] += w[i] * v[0]; out[1] += w[i] * v[1]; });
+
+      drawGrid(ctx, g);
+      ctx.save();
+      ctx.beginPath(); ctx.rect(g.x, g.y, g.w, g.h); ctx.clip();
+      const h = hull(st.v);
+      if (h.length >= 3) {
+        ctx.beginPath();
+        h.forEach((q, i) => { const s = S(p, [q.x, q.y]); if (i === 0) ctx.moveTo(s[0], s[1]); else ctx.lineTo(s[0], s[1]); });
+        ctx.closePath();
+        ctx.fillStyle = alpha(P.value, 0.09); ctx.fill();
+        ctx.strokeStyle = alpha(P.value, 0.4); ctx.lineWidth = 1.2;
+        ctx.setLineDash([4, 4]); ctx.stroke(); ctx.setLineDash([]);
+      }
+      let cx = 0, cy = 0;
+      const pts = [[0, 0]];
+      st.v.forEach((v, i) => { cx += w[i] * v[0]; cy += w[i] * v[1]; pts.push([cx, cy]); });
+      ctx.beginPath();
+      pts.forEach((q, i) => { const s = S(p, q); if (i === 0) ctx.moveTo(s[0], s[1]); else ctx.lineTo(s[0], s[1]); });
+      ctx.strokeStyle = alpha(P.weight, 0.5); ctx.lineWidth = 1.5;
+      ctx.setLineDash([3, 3]); ctx.stroke(); ctx.setLineDash([]);
+      st.v.forEach((v, i) => {
+        const s = S(p, v);
+        stem(ctx, g.cx, g.cy, s[0], s[1], alpha(P.value, 0.3 + 0.7 * Math.min(1, w[i] * 2.6)), 1.6 + w[i] * 3.6);
+      });
+      const os = S(p, out);
+      arrow(ctx, g.cx, g.cy, os[0], os[1], P.weight, 3);
+      ctx.beginPath(); ctx.arc(os[0], os[1], 3.4, 0, TAU);
+      ctx.fillStyle = P.weight; ctx.fill();
+      ctx.beginPath(); ctx.arc(os[0], os[1], 8.5, 0, TAU);
+      ctx.strokeStyle = alpha(P.weight, 0.4); ctx.lineWidth = 1.2; ctx.stroke();
+      ctx.restore();
+      plotFrame(ctx, g);
+
+      st.v.forEach((v, i) => {
+        const s = S(p, v);
+        label(ctx, names[i], s[0] + (v[0] >= 0 ? 17 : -17), s[1] - 15, P.value, font(11, 600, MONO));
+        p.puck(ctx, { x: s[0], y: s[1], r: 8, id: "v" + i }, P.value);
+      });
+      label(ctx, "o", os[0] + 13, os[1] + 14, P.weight, font(14, 700, SERIF));
+
+      // ---- weights + the arithmetic ----
+      const r = p.r, b = p.bar;
+      label(ctx, "attention weights   α", r.x, r.y, P.weight, font(10, 700), "left");
+      let x0 = b.x;
+      ctx.save();
+      rr(ctx, b.x, b.y, b.w, b.h, 6); ctx.clip();
+      w.forEach((wi, i) => {
+        const ww = b.w * wi;
+        ctx.fillStyle = alpha(P.weight, SHADE[i]);
+        ctx.fillRect(x0, b.y, ww, b.h);
+        if (ww > 40) {
+          const tc = SHADE[i] > 0.5 ? P.panel : P.ink;
+          label(ctx, names[i], x0 + ww / 2, b.y + b.h / 2 - 6, tc, font(10, 700, MONO));
+          label(ctx, (wi * 100).toFixed(0) + "%", x0 + ww / 2, b.y + b.h / 2 + 8, alpha(tc, 0.85), font(10, 600, MONO));
+        }
+        x0 += ww;
+      });
+      ctx.restore();
+      rr(ctx, b.x, b.y, b.w, b.h, 6);
+      ctx.strokeStyle = P.rule; ctx.lineWidth = 1; ctx.stroke();
+      st.cuts.forEach((c, i) => {
+        const x = b.x + b.w * c;
+        line(ctx, Math.round(x) + 0.5, b.y, Math.round(x) + 0.5, b.y + b.h, P.panel, 2);
+        p.puck(ctx, { x: x, y: b.y + b.h / 2, r: 7, id: "c" + i }, P.weight);
+      });
+      label(ctx, "drag the dividers", b.x, b.y + b.h + 16, P.inkMute, font(10, 500), "left");
+
+      const ay = b.y + b.h + 46;
+      label(ctx, "o  =  Σ  α", r.x, ay - 12, P.inkSoft, font(11, 600, SERIF), "left");
+      ctx.font = font(11, 600, SERIF);
+      const w0 = ctx.measureText("o  =  Σ  α").width;
+      label(ctx, "j", r.x + w0 + 1, ay - 9, P.inkSoft, font(8, 600, SERIF), "left");
+      label(ctx, " v", r.x + w0 + 6, ay - 12, P.inkSoft, font(11, 600, SERIF), "left");
+      ctx.font = font(11, 600, SERIF);
+      label(ctx, "j", r.x + w0 + 6 + ctx.measureText(" v").width, ay - 9, P.inkSoft, font(8, 600, SERIF), "left");
+
+      const colA = r.x + 74, colV = r.x + 88;
+      st.v.forEach((v, i) => {
+        const y = ay + 10 + i * 20;
+        label(ctx, names[i], r.x + 34, y, P.inkMute, font(10, 500, MONO), "right");
+        label(ctx, fmt(w[i], 2), colA, y, alpha(P.weight, Math.max(0.55, SHADE[i])), font(11, 600, MONO), "right");
+        label(ctx, "×", colA + 8, y, P.inkMute, font(10, 500), "center");
+        label(ctx, "( " + fmt(v[0], 2) + ",  " + fmt(v[1], 2) + " )", colV, y, P.value, font(11, 600, MONO), "left");
+      });
+      const ry2 = ay + 10 + 4 * 20 - 6;
+      line(ctx, colA - 34, Math.round(ry2) + 0.5, colV + 116, Math.round(ry2) + 0.5, P.ruleSoft, 1);
+      label(ctx, "=", colA + 8, ry2 + 16, P.inkMute, font(11, 600), "center");
+      label(ctx, "( " + fmt(out[0], 2) + ",  " + fmt(out[1], 2) + " )", colV, ry2 + 16, P.weight, font(11.5, 700, MONO), "left");
+    }
+  });
+})();
+
+/* ============================================================
+   The toy head — shared by Figures 7 and 8
+   d_model = 4  (2 content + 2 position),  d_k = 4,  so the scale is 1/2
+   ============================================================ */
+const DK = 4, SCALE = 1 / Math.sqrt(DK);
+function headTerms(i, j, prm) {
+  const c = Math.cos(rad(CONTENT_DEG[i] - CONTENT_DEG[j]));
+  const pterm = Math.cos(rad((i - j) * DELTA + prm.phi));
+  return { c: prm.gc * c * SCALE, p: prm.gp * pterm * SCALE };
+}
+function headMatrices(prm) {
+  const n = TOKENS.length, S = [], A = [], T = [];
+  for (let i = 0; i < n; i++) {
+    const row = [], trow = [];
+    for (let j = 0; j < n; j++) {
+      const t = headTerms(i, j, prm);
+      trow.push(t);
+      row.push(prm.causal && j > i ? -Infinity : t.c + t.p);
+    }
+    S.push(row); T.push(trow); A.push(softmax(row));
+  }
+  return { S: S, A: A, T: T };
+}
+function rampPos(t) { return mix(P.panel, P.weight, Math.pow(clamp(t, 0, 1), 0.8)); }
+function rampSigned(v, m) {
+  const t = Math.pow(clamp(Math.abs(v) / m, 0, 1), 0.8);
+  return mix(P.panel, v >= 0 ? P.weight : P.neutral, t);
+}
+function cellText(t) { return t > 0.58 ? P.panel : P.inkSoft; }
+function hatch(ctx, x, y, w, h) {
+  ctx.save();
+  ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip();
+  ctx.strokeStyle = alpha(P.inkMute, 0.26); ctx.lineWidth = 1;
+  for (let d = -h; d < w; d += 5) {
+    ctx.beginPath(); ctx.moveTo(x + d, y); ctx.lineTo(x + d + h, y + h); ctx.stroke();
+  }
+  ctx.restore();
+}
+
+
+/* ============================================================
+   Figure 8 — the whole pipeline, drawn to scale
+   Every block below is the real matrix for our seven-token
+   sentence, shaded by its own magnitude.
+   ============================================================ */
+(function () {
+  const n = 7;
+  const prm = { gc: 3.6, gp: 2.6, phi: -45, causal: true };
+
+  function embed(t) {
+    const c = contentVec(CONTENT_DEG[t]);
+    return [c[0], c[1], Math.cos(rad(t * DELTA)), Math.sin(rad(t * DELTA))];
+  }
+  function project(t) {
+    const e = embed(t);
+    const cph = Math.cos(rad(prm.phi)), sph = Math.sin(rad(prm.phi));
+    return [
+      prm.gc * e[0], prm.gc * e[1],
+      prm.gp * (e[2] * cph - e[3] * sph),
+      prm.gp * (e[2] * sph + e[3] * cph)
+    ];
+  }
+  const X = [], Q = [], K = [], V = [];
+  for (let t = 0; t < n; t++) { X.push(embed(t)); Q.push(project(t)); K.push(embed(t)); V.push(embed(t)); }
+  const M = headMatrices(prm);
+  const O = [];
+  for (let i = 0; i < n; i++) {
+    const row = [0, 0, 0, 0];
+    for (let j = 0; j < n; j++) for (let d = 0; d < 4; d++) row[d] += M.A[i][j] * V[j][d];
+    O.push(row);
+  }
+  const maxAbs = (m) => {
+    let x = 1e-6;
+    for (const r of m) for (const v of r) x = Math.max(x, Math.abs(isFinite(v) ? v : 0));
+    return x;
+  };
+
+  function geom(W) {
+    const pad = 16;
+    const c = clamp(Math.round((W - 2 * pad) / 62), 5, 11);
+    const gap = Math.max(40, (W - 2 * pad - 26 * c) / 4);
+    return { pad: pad, c: c, gap: gap, h: n * c };
+  }
+  function layout(p) {
+    const g = geom(p.W);
+    p.geo = g;
+    const c = g.c, gp2 = g.gap;
+    const xs = [];
+    let x = (p.W - (26 * c + 4 * gp2)) / 2;
+    xs.push(x); x += 4 * c + gp2;   // X
+    xs.push(x); x += 4 * c + gp2;   // Q K V
+    xs.push(x); x += 7 * c + gp2;   // S
+    xs.push(x); x += 7 * c + gp2;   // A
+    xs.push(x);                     // O
+    p.xs = xs;
+    const top1 = 54, step = g.h + 40;
+    p.tops = { q: top1, k: top1 + step, v: top1 + step * 2 };
+    p.tops.x = p.tops.k;
+    p.tops.s = (p.tops.q + p.tops.k) / 2;
+    p.tops.a = p.tops.s;
+    p.tops.o = (p.tops.k + p.tops.v) / 2;
+  }
+
+  function block(ctx, x, y, rows, cols, get, cell, col, sequential, mx) {
+    for (let i = 0; i < rows; i++) {
+      for (let j = 0; j < cols; j++) {
+        const v = get(i, j);
+        let fill;
+        if (!isFinite(v)) fill = P.sunken;
+        else if (sequential) fill = mix(P.panel, col, Math.pow(clamp(v / mx, 0, 1), 0.75));
+        else fill = mix(P.panel, v >= 0 ? col : P.neutral, Math.pow(clamp(Math.abs(v) / mx, 0, 1), 0.75));
+        ctx.fillStyle = fill;
+        ctx.fillRect(x + j * cell, y + i * cell, cell - 0.7, cell - 0.7);
+      }
+    }
+    ctx.strokeStyle = P.rule; ctx.lineWidth = 1;
+    ctx.strokeRect(Math.round(x) - 0.5, Math.round(y) - 0.5, cols * cell, rows * cell);
+  }
+  function cap(ctx, x, y, cols, cell, name, shape, col) {
+    label(ctx, name, x + cols * cell / 2, y - 12, col, font(11, 700, SERIF));
+    label(ctx, shape, x + cols * cell / 2, y + n * cell + 13, P.inkMute, font(9, 500, MONO));
+  }
+  function flow(ctx, x1, y1, x2, y2, col, txt, above) {
+    const mx2 = (x1 + x2) / 2;
+    ctx.strokeStyle = alpha(col, 0.5); ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.bezierCurveTo(mx2, y1, mx2, y2, x2 - 6, y2);
+    ctx.stroke();
+    ctx.fillStyle = alpha(col, 0.6);
+    ctx.beginPath();
+    ctx.moveTo(x2, y2); ctx.lineTo(x2 - 7, y2 - 3.6); ctx.lineTo(x2 - 7, y2 + 3.6);
+    ctx.closePath(); ctx.fill();
+    if (txt) {
+      ctx.font = font(9.5, 600, MONO);
+      const w = ctx.measureText(txt).width;
+      const ly = (y1 + y2) / 2 + (above ? -9 : 9);
+      ctx.fillStyle = P.panel;
+      ctx.fillRect(mx2 - w / 2 - 4, ly - 7, w + 8, 14);
+      label(ctx, txt, mx2, ly, col, font(9.5, 600, MONO));
+    }
+  }
+
+  mount("pipeline", {
+    aria: "Dataflow diagram of one attention head: embeddings project to queries, keys and values, which produce scores, an attention matrix, and the output.",
+    height: (w) => {
+      const g = geom(w);
+      return 54 + g.h * 3 + 80 + 46;
+    },
+    layout,
+    draw(ctx, W, H, p) {
+      const g = p.geo, c = g.c, xs = p.xs, T = p.tops;
+      const mX = maxAbs(X), mQ = maxAbs(Q), mS = 3.1;
+
+      block(ctx, xs[0], T.x, n, 4, (i, j) => X[i][j], c, P.inkSoft, false, mX);
+      cap(ctx, xs[0], T.x, 4, c, "X", n + "×4", P.inkSoft);
+
+      block(ctx, xs[1], T.q, n, 4, (i, j) => Q[i][j], c, P.query, false, mQ);
+      cap(ctx, xs[1], T.q, 4, c, "Q", n + "×4", P.query);
+      block(ctx, xs[1], T.k, n, 4, (i, j) => K[i][j], c, P.key, false, mX);
+      cap(ctx, xs[1], T.k, 4, c, "K", n + "×4", P.key);
+      block(ctx, xs[1], T.v, n, 4, (i, j) => V[i][j], c, P.value, false, mX);
+      cap(ctx, xs[1], T.v, 4, c, "V", n + "×4", P.value);
+
+      block(ctx, xs[2], T.s, n, n, (i, j) => M.S[i][j], c, P.weight, false, mS);
+      cap(ctx, xs[2], T.s, n, c, "S", n + "×" + n, P.inkSoft);
+      block(ctx, xs[3], T.a, n, n, (i, j) => M.A[i][j], c, P.weight, true, 1);
+      cap(ctx, xs[3], T.a, n, c, "A", n + "×" + n, P.weight);
+      block(ctx, xs[4], T.o, n, 4, (i, j) => O[i][j], c, P.weight, false, mX);
+      cap(ctx, xs[4], T.o, 4, c, "O", n + "×4", P.weight);
+
+      const half = g.h / 2;
+      const rX = xs[0] + 4 * c, rQKV = xs[1] + 4 * c, rS = xs[2] + n * c, rA = xs[3] + n * c;
+      flow(ctx, rX, T.x + half, xs[1], T.q + half, P.query, "× W", true);
+      flow(ctx, rX, T.x + half, xs[1], T.k + half, P.key, "× W", true);
+      flow(ctx, rX, T.x + half, xs[1], T.v + half, P.value, "× W", false);
+      flow(ctx, rQKV, T.q + half, xs[2], T.s + half, P.inkMute, "", true);
+      flow(ctx, rQKV, T.k + half, xs[2], T.s + half, P.inkMute, "QKᵀ ÷ √d", false);
+      flow(ctx, rS, T.s + half, xs[3], T.a + half, P.weight, "mask, softmax", true);
+      flow(ctx, rA, T.a + half, xs[4], T.o + half, P.weight, "", true);
+      flow(ctx, rQKV, T.v + half, xs[4], T.o + half, P.value, "A V", false);
+
+      // subscripts on the three projection labels
+      const subs = [["Q", P.query, T.q], ["K", P.key, T.k], ["V", P.value, T.v]];
+      subs.forEach((sgm) => {
+        const mx2 = (rX + xs[1]) / 2;
+        ctx.font = font(9.5, 600, MONO);
+        const w = ctx.measureText("× W").width;
+        const ly = (T.x + half + sgm[2] + half) / 2 + (sgm[0] === "V" ? 9 : -9);
+        label(ctx, sgm[0], mx2 + w / 2 + 3, ly + 2.5, sgm[1], font(7.5, 700, MONO), "left");
+      });
+
+      label(ctx, "shading is per-matrix — each block is scaled to its own largest entry",
+        W / 2, H - 16, P.inkMute, font(10, 500), "center");
+    }
+  });
+})();
+
+/* ============================================================
+   Figure 7 — the attention matrix and the causal mask
+   ============================================================ */
+(function () {
+  const prm = { gc: 3.6, gp: 2.6, phi: -45, causal: false };
+  const n = TOKENS.length;
+  const PADT = 14, LABW = 44, GAP = 30, READ = 52;
+
+  function geom(W) {
+    const stacked = W < 640;
+    const pad = 16;
+    const avail = stacked ? W - pad * 2 - LABW : (W - pad * 2 - LABW * 2 - GAP) / 2;
+    const cell = clamp(Math.floor(avail / n), 22, 46);
+    return { stacked, pad, cell, blockH: PADT + 20 + 16 + cell * n };
+  }
+  function layout(p) {
+    const g = geom(p.W);
+    p.geo = g;
+    p.grids = [];
+    for (let k = 0; k < 2; k++) {
+      const gx = g.stacked ? (p.W - LABW - g.cell * n) / 2 + LABW : g.pad + LABW + k * (LABW + g.cell * n + GAP);
+      const gy = PADT + 36 + (g.stacked ? k * (g.blockH + 12) : 0);
+      p.grids.push({ x: gx, y: gy, cell: g.cell });
+    }
+  }
+
+  mount("matrix", {
+    aria: "The seven by seven score matrix and the attention matrix after a row-wise softmax.",
+    height: (w) => {
+      const g = geom(w);
+      return (g.stacked ? g.blockH * 2 + 12 : g.blockH) + READ + 14;
+    },
+    layout,
+    controls(p) {
+      mkToggle(p, { label: "causal mask", checked: prm.causal, on: (v) => prm.causal = v });
+      mkNote(p, "Rows ask, columns answer. Hover or tap a cell to read the numbers behind it.");
+    },
+    onHover(x, y, p) {
+      let hit = null;
+      if (x !== null) {
+        for (let k = 0; k < 2; k++) {
+          const G = p.grids[k];
+          const i = Math.floor((y - G.y) / G.cell), j = Math.floor((x - G.x) / G.cell);
+          if (i >= 0 && i < n && j >= 0 && j < n) { hit = { i: i, j: j }; break; }
+        }
+      }
+      const same = (!hit && !p.hit) || (hit && p.hit && hit.i === p.hit.i && hit.j === p.hit.j);
+      p.hit = hit;
+      return !same;
+    },
+    cursor() { return "crosshair"; },
+    draw(ctx, W, H, p) {
+      const M = headMatrices(prm);
+      const hit = p.hit;
+      const maxS = 3.1;
+      const titles = ["S — scores", "A — softmax of each row"];
+      const cols = [P.inkSoft, P.weight];
+
+      for (let k = 0; k < 2; k++) {
+        const G = p.grids[k];
+        label(ctx, titles[k], G.x - LABW, G.y - 32, cols[k], font(10, 700), "left");
+        for (let j = 0; j < n; j++) {
+          const hotc = hit && hit.j === j;
+          label(ctx, TOKENS[j], G.x + G.cell * (j + 0.5), G.y - 12, hotc ? P.ink : P.inkMute,
+            font(Math.min(10.5, G.cell * 0.27), hotc ? 700 : 500, MONO));
+        }
+        for (let i = 0; i < n; i++) {
+          const rowHot = hit && hit.i === i;
+          label(ctx, TOKENS[i], G.x - 9, G.y + G.cell * (i + 0.5), rowHot ? P.ink : P.inkMute,
+            font(Math.min(11, G.cell * 0.28), rowHot ? 700 : 500, MONO), "right");
+          for (let j = 0; j < n; j++) {
+            const x = G.x + G.cell * j, y = G.y + G.cell * i;
+            const masked = prm.causal && j > i;
+            const v = k === 0 ? M.S[i][j] : M.A[i][j];
+            let fill, t;
+            if (masked) { fill = P.sunken; t = 0; }
+            else if (k === 0) { t = Math.abs(v) / maxS; fill = rampSigned(v, maxS); }
+            else { t = v; fill = rampPos(v); }
+            ctx.fillStyle = fill;
+            ctx.fillRect(x, y, G.cell - 1, G.cell - 1);
+            if (masked) hatch(ctx, x, y, G.cell - 1, G.cell - 1);
+            else if (G.cell >= 30) {
+              const txt = k === 0 ? fmt(v, 1) : (v >= 0.995 ? "1.0" : v.toFixed(2).slice(1));
+              label(ctx, txt, x + (G.cell - 1) / 2, y + (G.cell - 1) / 2, cellText(t),
+                font(Math.min(10.5, G.cell * 0.26), 600, MONO));
+            }
+            if (hit && hit.i === i && hit.j === j) {
+              ctx.strokeStyle = P.ink; ctx.lineWidth = 2;
+              ctx.strokeRect(x + 1, y + 1, G.cell - 3, G.cell - 3);
+            } else if (hit && (hit.i === i || hit.j === j)) {
+              ctx.strokeStyle = alpha(P.ink, 0.2); ctx.lineWidth = 1;
+              ctx.strokeRect(x + 0.5, y + 0.5, G.cell - 2, G.cell - 2);
+            }
+          }
+        }
+        ctx.strokeStyle = P.rule; ctx.lineWidth = 1;
+        ctx.strokeRect(Math.round(G.x) - 0.5, Math.round(G.y) - 0.5, G.cell * n, G.cell * n);
+      }
+
+      const ry = H - READ + 16, rx = 18;
+      if (hit) {
+        const i = hit.i, j = hit.j;
+        const masked = prm.causal && j > i;
+        const txt = TOKENS[i] + "  →  " + TOKENS[j];
+        label(ctx, txt, rx, ry, P.ink, font(13, 700, MONO), "left");
+        ctx.font = font(13, 700, MONO);
+        let x2 = rx + ctx.measureText(txt).width + 26;
+        const parts = masked
+          ? [["s", "−∞  (masked)", P.neutral], ["α", "0.000", P.inkMute]]
+          : [["s", fmt(M.S[i][j], 2), P.inkSoft], ["α", fmt(M.A[i][j], 3), P.weight]];
+        parts.forEach((pr) => {
+          label(ctx, pr[0] + " =", x2, ry, P.inkMute, font(11.5, 600, SERIF), "left");
+          ctx.font = font(11.5, 600, SERIF);
+          x2 += ctx.measureText(pr[0] + " =").width + 7;
+          label(ctx, pr[1], x2, ry, pr[2], font(12.5, 700, MONO), "left");
+          ctx.font = font(12.5, 700, MONO);
+          x2 += ctx.measureText(pr[1]).width + 26;
+        });
+        label(ctx, "row sum " + fmt(M.A[i].reduce((a, b) => a + b, 0), 2),
+          W - 18, ry, P.inkMute, font(11, 500, MONO), "right");
+      } else {
+        label(ctx, "Hover a cell to read it.", rx, ry, P.inkMute, font(11.5, 500), "left");
+        label(ctx, "every row of A sums to exactly 1", W - 18, ry, P.inkMute, font(11, 500), "right");
+      }
+    }
+  });
+})();
+
+/* ============================================================
+   Figure 8 — a complete head, four dimensions wide
+   ============================================================ */
+(function () {
+  const prm = { gc: 0, gp: 14, phi: -45, causal: true };
+  const n = TOKENS.length;
+  const st = { row: 4 };
+  const PRESETS = [
+    { id: "prev", label: "previous token", gc: 0, gp: 14, phi: -45 },
+    { id: "content", label: "match content", gc: 14, gp: 0, phi: -45 },
+    { id: "both", label: "both", gc: 8, gp: 8, phi: -45 },
+    { id: "self", label: "itself", gc: 0, gp: 14, phi: 0 }
+  ];
+  const ROWH = 26;
+
+  function geom(W) {
+    const stacked = W < 660;
+    const pad = 16, labW = 42;
+    const cell = stacked
+      ? clamp(Math.floor((W - pad * 2 - labW) / n), 22, 42)
+      : clamp(Math.floor((W * 0.42 - labW) / n), 22, 38);
+    return { stacked: stacked, pad: pad, labW: labW, cell: cell };
+  }
+  function layout(p) {
+    const g = geom(p.W), W = p.W;
+    p.geo = g;
+    p.strip = { x: g.pad, y: 16, w: W - g.pad * 2, h: 24 };
+    const gridX = g.stacked ? (W - g.labW - g.cell * n) / 2 + g.labW : g.pad + g.labW;
+    p.grid = { x: gridX, y: 106, cell: g.cell };
+    const gridBottom = p.grid.y + g.cell * n;
+    const gridRight = p.grid.x + g.cell * n;
+    if (g.stacked) {
+      const cs = Math.min(180, W - g.pad * 2);
+      p.clock = { x: (W - cs) / 2, y: gridBottom + 44, size: cs };
+      p.dec = { x: g.pad, y: p.clock.y + cs + 52, w: W - g.pad * 2 };
+      const ms = Math.min(190, W - g.pad * 2);
+      p.mini = { x: (W - ms) / 2, y: p.dec.y + n * ROWH + 44, size: ms };
+    } else {
+      const cs = Math.min(178, gridRight - g.pad);
+      p.clock = { x: g.pad + (gridRight - g.pad - cs) / 2, y: gridBottom + 40, size: cs };
+      p.dec = { x: gridRight + 34, y: 106, w: W - gridRight - 34 - g.pad };
+      const ms = Math.min(168, p.dec.w);
+      p.mini = { x: p.dec.x + (p.dec.w - ms) / 2, y: p.clock.y + cs - ms, size: ms };
+    }
+  }
+
+  mount("head", {
+    aria: "A complete attention head over seven tokens with adjustable rotation and gains.",
+    height: (w) => {
+      const g = geom(w);
+      const gridBottom = 106 + g.cell * n;
+      if (g.stacked) {
+        const cs = Math.min(180, w - g.pad * 2);
+        const decY = gridBottom + 44 + cs + 52;
+        return decY + n * ROWH + 44 + Math.min(190, w - g.pad * 2) + 30;
+      }
+      const cs = Math.min(178, 106 + g.cell * n);
+      return gridBottom + 40 + cs + 30;
+    },
+    layout,
+    controls(p) {
+      p.sl = {};
+      p.sl.phi = mkSlider(p, { label: "rotation φ", color: "var(--query)", min: -180, max: 180, step: 1, value: prm.phi, fmt: (v) => fmt(v, 0) + "°", on: (v) => { prm.phi = v; p.presetSet(-1); } });
+      p.sl.gp = mkSlider(p, { label: "position gain", color: "var(--query)", min: 0, max: 20, step: 0.1, value: prm.gp, fmt: (v) => fmt(v, 1), on: (v) => { prm.gp = v; p.presetSet(-1); } });
+      p.sl.gc = mkSlider(p, { label: "content gain", color: "var(--key)", min: 0, max: 20, step: 0.1, value: prm.gc, fmt: (v) => fmt(v, 1), on: (v) => { prm.gc = v; p.presetSet(-1); } });
+      mkToggle(p, { label: "causal mask", checked: prm.causal, on: (v) => prm.causal = v });
+      const seg = mkSeg(p, {
+        label: "preset:", flex: "1 1 100%",
+        options: PRESETS.map((q) => ({ id: q.id, label: q.label })), index: 0,
+        on: (id) => {
+          const q = PRESETS.filter((z) => z.id === id)[0];
+          prm.gc = q.gc; prm.gp = q.gp; prm.phi = q.phi;
+          p.sl.gc.set(q.gc); p.sl.gp.set(q.gp); p.sl.phi.set(q.phi);
+        }
+      });
+      p.presetSet = seg.set;
+      p.sweepBtn = mkButton(p, {
+        label: "Sweep φ", on: () => {
+          p.sweeping = !p.sweeping;
+          p.spec.animate = p.sweeping;
+          p.sweepBtn.textContent = p.sweeping ? "Stop" : "Sweep φ";
+          p.last = performance.now();
+          if (p.sweeping) request();
+        }
+      });
+      mkNote(p, "Neighbouring tokens sit Δ = 45° apart on the position circle. Set φ = −45° and every token's best match is the one before it.");
+    },
+    onClick(x, y, p) {
+      const G = p.grid;
+      const i = Math.floor((y - G.y) / G.cell);
+      if (i >= 0 && i < n && x > p.geo.pad && x < G.x + G.cell * n) { st.row = i; return; }
+      const s = p.strip;
+      if (y > s.y - 6 && y < s.y + s.h + 20) {
+        const k = Math.floor((x - s.x) / (s.w / n));
+        if (k >= 0 && k < n) st.row = k;
+      }
+    },
+    cursor(x, y, p) {
+      const G = p.grid, s = p.strip;
+      const inGrid = y > G.y && y < G.y + G.cell * n && x > p.geo.pad && x < G.x + G.cell * n;
+      const inStrip = y > s.y - 6 && y < s.y + s.h + 20 && x > s.x && x < s.x + s.w;
+      return inGrid || inStrip ? "pointer" : "default";
+    },
+    draw(ctx, W, H, p) {
+      if (p.sweeping) {
+        const now = performance.now();
+        const dt = Math.min(60, now - (p.last || now));
+        p.last = now;
+        prm.phi = ((prm.phi - dt * 0.035 + 180 + 360) % 360) - 180;
+        p.sl.phi.set(Math.round(prm.phi));
+        p.presetSet(-1);
+      }
+      const M = headMatrices(prm);
+      const i = st.row;
+      const G = p.grid, g = p.geo;
+
+      // ---- the sentence ----
+      const s = p.strip, cw = s.w / n;
+      for (let t = 0; t < n; t++) {
+        const cx = s.x + cw * (t + 0.5);
+        const sel = t === i;
+        ctx.font = font(12, 600, MONO);
+        const tw = Math.max(34, ctx.measureText(TOKENS[t]).width + 18);
+        rr(ctx, cx - tw / 2, s.y, tw, s.h, 6);
+        ctx.fillStyle = sel ? P.query : P.sunken; ctx.fill();
+        label(ctx, TOKENS[t], cx, s.y + s.h / 2, sel ? P.panel : P.inkSoft, font(12, sel ? 700 : 500, MONO));
+        label(ctx, "t = " + t, cx, s.y + s.h + 14, sel ? P.query : P.inkMute, font(9.5, sel ? 700 : 500, MONO));
+      }
+
+      // ---- attention matrix ----
+      label(ctx, "attention  A", G.x - g.labW, 78, P.weight, font(10, 700), "left");
+      for (let j = 0; j < n; j++) {
+        label(ctx, TOKENS[j], G.x + G.cell * (j + 0.5), 94, P.inkMute, font(Math.min(9.5, G.cell * 0.26), 500, MONO));
+      }
+      for (let r = 0; r < n; r++) {
+        const hot = r === i;
+        label(ctx, TOKENS[r], G.x - 8, G.y + G.cell * (r + 0.5), hot ? P.query : P.inkMute,
+          font(Math.min(10.5, G.cell * 0.28), hot ? 700 : 500, MONO), "right");
+        for (let j = 0; j < n; j++) {
+          const x = G.x + G.cell * j, y = G.y + G.cell * r;
+          const masked = prm.causal && j > r;
+          const v = M.A[r][j];
+          ctx.fillStyle = masked ? P.sunken : rampPos(v);
+          ctx.fillRect(x, y, G.cell - 1, G.cell - 1);
+          if (masked) hatch(ctx, x, y, G.cell - 1, G.cell - 1);
+          else if (G.cell >= 28) {
+            label(ctx, v >= 0.995 ? "1.0" : v.toFixed(2).slice(1), x + (G.cell - 1) / 2, y + (G.cell - 1) / 2,
+              cellText(v), font(Math.min(9.5, G.cell * 0.25), 600, MONO));
+          }
+        }
+      }
+      ctx.strokeStyle = P.query; ctx.lineWidth = 2;
+      ctx.strokeRect(Math.round(G.x) - 1, Math.round(G.y + G.cell * i) - 1, G.cell * n + 1, G.cell + 1);
+      ctx.strokeStyle = P.rule; ctx.lineWidth = 1;
+      ctx.strokeRect(Math.round(G.x) - 0.5, Math.round(G.y) - 0.5, G.cell * n, G.cell * n);
+
+      // ---- the position circle ----
+      const ck = p.clock, R = ck.size / 2 - 26;
+      const ccx = ck.x + ck.size / 2, ccy = ck.y + ck.size / 2;
+      label(ctx, "position, as an angle", ck.x, ck.y - 14, P.inkMute, font(10, 700), "left");
+      ctx.beginPath(); ctx.arc(ccx, ccy, R, 0, TAU);
+      ctx.strokeStyle = P.grid; ctx.lineWidth = 1; ctx.stroke();
+      const qAng = i * DELTA + prm.phi;
+      // the query direction
+      const qx = ccx + Math.cos(rad(qAng)) * R, qy = ccy - Math.sin(rad(qAng)) * R;
+      // the arc swept by phi
+      if (Math.abs(prm.phi) > 0.5) {
+        const a0 = -rad(i * DELTA), a1 = -rad(qAng);
+        ctx.beginPath(); ctx.arc(ccx, ccy, R * 0.52, a0, a1, prm.phi > 0);
+        ctx.strokeStyle = alpha(P.query, 0.75); ctx.lineWidth = 1.6; ctx.stroke();
+        const am = (a0 + a1) / 2;
+        label(ctx, "φ", ccx + Math.cos(am) * R * 0.52 * 0.72, ccy + Math.sin(am) * R * 0.52 * 0.72,
+          P.query, font(12, 700, SERIF));
+      }
+      dashed(ctx, ccx, ccy, ccx + Math.cos(rad(i * DELTA)) * R, ccy - Math.sin(rad(i * DELTA)) * R,
+        alpha(P.inkMute, 0.55), 1.2, [3, 4]);
+      for (let t = 0; t < n; t++) {
+        const a = rad(t * DELTA);
+        const x = ccx + Math.cos(a) * R, y = ccy - Math.sin(a) * R;
+        const w = M.A[i][t];
+        ctx.beginPath(); ctx.arc(x, y, 4 + 4 * w, 0, TAU);
+        ctx.fillStyle = mix(P.key, P.weight, clamp(w * 1.4, 0, 1));
+        ctx.globalAlpha = 0.35 + 0.65 * clamp(w * 2.2, 0, 1); ctx.fill(); ctx.globalAlpha = 1;
+        label(ctx, String(t), ccx + Math.cos(a) * (R + 14), ccy - Math.sin(a) * (R + 14),
+          t === i ? P.query : P.inkMute, font(9.5, t === i ? 700 : 500, MONO));
+      }
+      arrow(ctx, ccx, ccy, qx, qy, P.query, 2.2);
+      label(ctx, "token " + i + "\u2019s own angle, turned by φ", ck.x, ck.y + ck.size + 2,
+        P.inkMute, font(9.5, 500), "left");
+
+      // ---- decomposition of the selected row ----
+      const d = p.dec;
+      label(ctx, "row " + i + " — what “" + TOKENS[i] + "” asks for", d.x, d.y - 28, P.query, font(10, 700), "left");
+      const labR = d.x + 40;
+      let mv = 0.5;
+      for (let j = 0; j < n; j++) mv = Math.max(mv, Math.abs(M.T[i][j].c), Math.abs(M.T[i][j].p));
+      const half = Math.min(52, (d.w - 46) * 0.3);
+      const zero = labR + 14 + half;
+      const wbX = zero + half + 16;
+      const wbW = Math.max(30, d.x + d.w - wbX - 40);
+      label(ctx, "content", zero - half / 2, d.y - 10, P.key, font(9, 700), "center");
+      label(ctx, "position", zero + half / 2, d.y - 10, P.query, font(9, 700), "center");
+      label(ctx, "α", wbX + wbW / 2, d.y - 10, P.weight, font(9.5, 700), "center");
+      for (let j = 0; j < n; j++) {
+        const y = d.y + ROWH * j + 13;
+        const masked = prm.causal && j > i;
+        const T = M.T[i][j];
+        label(ctx, TOKENS[j], labR, y, masked ? P.inkMute : P.inkSoft, font(10.5, 500, MONO), "right");
+        if (masked) {
+          label(ctx, "masked", zero, y, P.inkMute, font(9.5, 500), "center");
+        } else {
+          [[T.c, P.key, -5], [T.p, P.query, 5]].forEach((q) => {
+            const wpx = clamp(q[0] / mv, -1, 1) * half;
+            rr(ctx, wpx >= 0 ? zero : zero + wpx, y + q[2] - 3.5, Math.max(0.8, Math.abs(wpx)), 7, 2);
+            ctx.fillStyle = alpha(q[1], 0.88); ctx.fill();
+          });
+          line(ctx, Math.round(zero) + 0.5, y - 11, Math.round(zero) + 0.5, y + 11, P.rule, 1);
+        }
+        const a = M.A[i][j];
+        rr(ctx, wbX, y - 7, wbW, 14, 3); ctx.fillStyle = P.sunken; ctx.fill();
+        rr(ctx, wbX, y - 7, Math.max(1.5, wbW * a), 14, 3);
+        ctx.fillStyle = P.weight; ctx.globalAlpha = 0.4 + 0.6 * a; ctx.fill(); ctx.globalAlpha = 1;
+        label(ctx, a >= 0.995 ? "100%" : (a * 100).toFixed(a < 0.095 ? 1 : 0) + "%",
+          wbX + wbW + 6, y, a > 0.4 ? P.weight : P.inkMute, font(9.5, a > 0.4 ? 700 : 500, MONO), "left");
+      }
+
+      // ---- the content it retrieves ----
+      const m = p.mini, MR = m.size / 2 - 22;
+      const mcx = m.x + m.size / 2, mcy = m.y + m.size / 2;
+      label(ctx, "the content it retrieves", m.x, m.y - 14, P.value, font(10, 700), "left");
+      ctx.beginPath(); ctx.arc(mcx, mcy, MR, 0, TAU);
+      ctx.strokeStyle = P.grid; ctx.lineWidth = 1; ctx.stroke();
+      line(ctx, mcx - MR - 7, mcy, mcx + MR + 7, mcy, P.grid, 1);
+      line(ctx, mcx, mcy - MR - 7, mcx, mcy + MR + 7, P.grid, 1);
+      let ox = 0, oy = 0;
+      for (let j = 0; j < n; j++) {
+        const c = contentVec(CONTENT_DEG[j]);
+        ox += M.A[i][j] * c[0]; oy += M.A[i][j] * c[1];
+      }
+      const seen = {};
+      for (let j = 0; j < n; j++) {
+        const c = contentVec(CONTENT_DEG[j]);
+        const a = M.A[i][j];
+        stem(ctx, mcx, mcy, mcx + c[0] * MR, mcy - c[1] * MR, alpha(P.value, 0.14 + 0.72 * a), 1 + 2.6 * a);
+        if (!seen[CONTENT_DEG[j]]) {
+          seen[CONTENT_DEG[j]] = 1;
+          label(ctx, TOKENS[j], mcx + c[0] * (MR + 14), mcy - c[1] * (MR + 14),
+            a > 0.15 ? P.value : P.inkMute, font(9.5, a > 0.15 ? 700 : 500, MONO));
+        }
+      }
+      arrow(ctx, mcx, mcy, mcx + ox * MR, mcy - oy * MR, P.weight, 3);
+      const mag = Math.hypot(ox, oy);
+      label(ctx, "|o| = " + fmt(mag, 2) + (mag > 0.85 ? "   one word, cleanly" : "   a blend"),
+        m.x, m.y + m.size + 2, mag > 0.85 ? P.weight : P.inkMute, font(9.5, 600, MONO), "left");
+    }
+  });
+})();
+
+/* ============================================================
+   Wiring
+   ============================================================ */
+(function () {
+  const btn = document.getElementById("themeBtn");
+  if (btn) {
+    btn.addEventListener("click", () => {
+      const next = document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark";
+      applyTheme(next);
+      try { localStorage.setItem(THEME_KEY, next); } catch (e) {}
+      refreshPalette();
+      redrawAll();
+    });
+  }
+  const mq = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)");
+  if (mq && mq.addEventListener) {
+    mq.addEventListener("change", (e) => {
+      let stored = null;
+      try { stored = localStorage.getItem(THEME_KEY); } catch (err) {}
+      if (stored) return;
+      applyTheme(e.matches ? "dark" : "light");
+      refreshPalette();
+      redrawAll();
+    });
+  }
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => redrawAll());
+  window.addEventListener("load", () => { refreshPalette(); redrawAll(); request(); });
+  request();
+})();
+
+</script>
+</body>
+</html>

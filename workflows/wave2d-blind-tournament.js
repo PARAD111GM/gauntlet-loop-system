@@ -278,7 +278,9 @@ RULES
         let canonical = v.choice
         if (swap && v.choice === 'ALPHA') canonical = 'BETA'
         else if (swap && v.choice === 'BETA') canonical = 'ALPHA'
-        const winner = canonical === 'TOO_CLOSE' ? 'TOO_CLOSE' : (canonical === pair.oursIs ? 'OURS' : 'BASELINE')
+        // pair.oursIs is lowercase ('alpha'/'beta'); canonical is the judge's uppercase enum.
+        // Comparing them directly silently scored every verdict BASELINE.
+        const winner = canonical === 'TOO_CLOSE' ? 'TOO_CLOSE' : (canonical === pair.oursIs.toUpperCase() ? 'OURS' : 'BASELINE')
         return { lens: j + 1, winner: winner, confidence: v.confidence, decisive: v.decisive_difference, could_you_tell: v.could_you_tell, weaknesses: v.weaknesses_of_winner, reasoning: v.reasoning }
       })
     }))
