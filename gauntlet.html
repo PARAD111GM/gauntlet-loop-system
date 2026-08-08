@@ -82,6 +82,11 @@
   .chip{font-family:var(--mono);font-size:11.5px;padding:5px 9px;border:1px solid var(--rule);background:var(--chip);color:var(--ink-2);cursor:pointer}
   .chip:hover{border-color:var(--limit);color:var(--ink)}
   .chip[aria-pressed="true"]{background:var(--limit);border-color:var(--limit);color:#fff}
+  .tray{width:100%;display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:10px 11px;margin-top:2px;background:var(--field);border:1px solid var(--rule);border-left:3px solid var(--limit)}
+  .traylab{width:100%;font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3);margin-bottom:2px}
+  .chip.sub{background:transparent;border-style:dashed;color:var(--ink)}
+  .chip.sub:hover{background:var(--chip);border-style:solid}
+  .chip.sub[aria-pressed="true"]{background:var(--graphite);border-color:var(--graphite);border-style:solid;color:#fff}
 
   .gates{display:grid;gap:2px;margin-top:12px;border:1px solid var(--rule);background:var(--rule)}
   .gate{display:flex;gap:10px;align-items:flex-start;background:var(--field);padding:9px 11px;cursor:pointer}
@@ -119,6 +124,7 @@
   .ck .mk{font-family:var(--mono);font-size:12px;flex:none;width:12px;color:var(--ink-3)}
   .ck.ok{color:var(--ink-2)} .ck.ok .mk{color:var(--pass)}
   .ck.bad .mk{color:var(--limit)}
+  .ck.soft .mk{color:var(--warn)}
 
   .actions{display:flex;gap:8px;margin-top:14px}
   button{font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;padding:10px 14px;border:1px solid var(--ink);background:transparent;color:var(--ink);cursor:pointer}
@@ -183,8 +189,10 @@
     <div class="chips" id="barchips"></div>
     <label class="fl" for="bar">The thing to beat</label>
     <input type="text" id="bar" placeholder="Stripe's billing dashboard">
-    <label class="fl" for="cat">So nobody can call it “pretty good for a ___”</label>
-    <input type="text" id="cat" placeholder="settings page">
+    <p class="eg" style="border-left-color:var(--limit)">One more word and we're done here. AI grades itself on a curve — left alone it'll decide your thing is <b>“really good for a browser game”</b> and stop. Naming the category out loud is what takes that excuse away.</p>
+    <label class="fl" for="cat">What kind of thing is it?</label>
+    <input type="text" id="cat" placeholder="browser game">
+    <div class="hint" id="cathint"></div>
     <div class="gates" id="gates">
       <label class="gate"><input type="checkbox" data-g="named"><span><b>It's one specific thing.</b> “Stripe's billing dashboard”, not “a nice dashboard”.</span></label>
       <label class="gate"><input type="checkbox" data-g="open"><span><b>The AI can actually see it.</b> Open it yourself right now. If it's behind a login the AI can't reach, it will invent an opinion instead of forming one — that's the most common way these runs go wrong.</span></label>
@@ -218,9 +226,9 @@
   <div class="out" id="out"></div>
 
   <div class="ruler">
-    <div class="rulertop"><span>Words</span><span>Limit 150</span></div>
+    <div class="rulertop"><span>Words</span><span>Guide: ~150</span></div>
     <div class="track"><div class="ticks" id="ticks"></div><div class="fill" id="fill"></div><div class="redline"></div></div>
-    <p class="why">Past the red line, prompts start doing worse. You'd be telling the AI what to do instead of where to get to.</p>
+    <p class="why"><b>Being straight about this number:</b> it isn't measured. The original prompt is about 120 words, and 150 is that plus room. Going over won't break anything — it's a nudge to describe the destination rather than the route. Send it anyway if it's longer.</p>
   </div>
 
   <div class="checks">
@@ -248,18 +256,18 @@
 
 <script>
 const AXES = {
-  "Teaching or explaining":["3Blue1Brown","a Khan Academy lesson"],
-  "Something to play with":["a New York Times interactive graphic","Google Earth"],
-  "App screens with data in them":["Stripe's dashboard","Notion","Linear"],
-  "A landing or marketing page":["Apple's product pages","Stripe.com"],
-  "A game that feels good to control":["Tony Hawk's Pro Skater","Mario Kart"],
-  "A game that looks spectacular":["Call of Duty","Doom (2016)"],
-  "An API developers like using":["Stripe's API","GitHub's API"],
-  "Anything handling money":["Stripe","your bank's statements"],
-  "Writing that argues a point":["a New Yorker feature","The Economist"],
-  "Documentation":["Stripe's docs","MDN"],
-  "A command-line tool":["GitHub's CLI (gh)","git"],
-  "A phone app":["Instagram","Apple's own built-in apps"]
+  "Teaching or explaining":["3Blue1Brown","Kurzgesagt","Khan Academy","MDN's guides","Duolingo"],
+  "Something to play with":["a New York Times interactive graphic","Google Earth","Desmos","Flightradar24","Wolfram Alpha"],
+  "App screens with data in them":["Stripe's dashboard","Linear","Notion","Airtable","Vercel's dashboard"],
+  "A landing or marketing page":["Apple's product pages","Stripe.com","Linear.app","Figma.com","Airbnb"],
+  "A game that feels good to control":["Tony Hawk's Pro Skater","Mario Kart","Celeste","Rocket League","Super Mario Odyssey"],
+  "A game that looks spectacular":["Call of Duty","Red Dead Redemption 2","Doom (2016)","Cyberpunk 2077","The Last of Us Part II"],
+  "An API developers like using":["Stripe's API","GitHub's API","Twilio","Shopify's API","OpenAI's API"],
+  "Anything handling money":["Stripe","Wise","Mercury","Revolut","QuickBooks"],
+  "Writing that argues a point":["The Economist","a New Yorker feature","Paul Graham's essays","The Atlantic","a Financial Times leader"],
+  "Documentation":["Stripe's docs","MDN","React's docs","Tailwind's docs","Django's docs"],
+  "A command-line tool":["GitHub's CLI (gh)","git","Homebrew","Docker's CLI","fzf"],
+  "A phone app":["Instagram","Apple's built-in apps","Spotify","Uber","Things 3"]
 };
 const MODS = {
   "A page or screen you look at":"looks at it at the sizes people really use, and judges the finished screen rather than the code",
@@ -300,17 +308,22 @@ function renderChips(){
     const b=document.createElement("button");
     b.className="chip";b.type="button";b.textContent=ax;
     b.setAttribute("aria-pressed",chosenAxis===ax);
-    b.onclick=()=>{
-      chosenAxis = chosenAxis===ax?null:ax;
-      if(chosenAxis && !F.bar.value.trim()) F.bar.value=AXES[ax][0];
-      renderChips();update();
-    };
+    b.onclick=()=>{ chosenAxis = chosenAxis===ax?null:ax; renderChips();update() };
     c.appendChild(b);
     if(chosenAxis===ax){
-      const s=document.createElement("span");
-      s.className="hint";s.style.width="100%";
-      s.innerHTML="Try: <b>"+AXES[ax].join("</b> or <b>")+"</b>";
-      c.appendChild(s);
+      const tray=document.createElement("div");
+      tray.className="tray";
+      const lab=document.createElement("span");
+      lab.className="traylab";lab.textContent="Pick one to use it, or type your own:";
+      tray.appendChild(lab);
+      AXES[ax].forEach(name=>{
+        const e=document.createElement("button");
+        e.className="chip sub";e.type="button";e.textContent=name;
+        e.setAttribute("aria-pressed",F.bar.value.trim()===name);
+        e.onclick=()=>{ F.bar.value=name; renderChips(); update(); F.cat.focus() };
+        tray.appendChild(e);
+      });
+      c.appendChild(tray);
     }
   }
 }
@@ -349,13 +362,15 @@ function plain(){return build().replace(/<[^>]+>/g,"")}
 function words(){return plain().split(/\s+/).filter(Boolean).length}
 const g=k=>document.querySelector('[data-g="'+k+'"]').checked;
 
+// blocks=true means Copy stays disabled until it passes. Length is advice, not a gate —
+// the 150 is an assertion, not a measurement, and shouldn't stop anyone sending their prompt.
 const CHECKS=[
-  ["Short enough to leave room to think",()=>words()<=150&&words()>40],
-  ["You named one specific thing to beat",()=>F.bar.value.trim().length>2&&g("named")],
-  ["You opened it yourself and the AI can too",()=>g("open")],
-  ["You said what actually makes yours good",()=>F.axis.value.trim().length>3],
-  ["You didn't tell it which tools to use",()=>!/\b(react|vue|svelte|next\.?js|tailwind|postgres|three\.?js|rust|python|node)\b/i.test(F.goal.value+" "+F.scope.value)],
-  ["You named the hard parts",()=>F.scope.value.split(",").filter(x=>x.trim()).length>=3]
+  ["You named one specific thing to beat",()=>F.bar.value.trim().length>2&&g("named"),true],
+  ["You opened it yourself and the AI can too",()=>g("open"),true],
+  ["You said what actually makes yours good",()=>F.axis.value.trim().length>3,true],
+  ["You named the hard parts",()=>F.scope.value.split(",").filter(x=>x.trim()).length>=3,true],
+  ["You didn't tell it which tools to use",()=>!/\b(react|vue|svelte|next\.?js|tailwind|postgres|three\.?js|rust|python|node)\b/i.test(F.goal.value+" "+F.scope.value),false],
+  ["Around 150 words or fewer — a guide, not a rule",()=>words()<=150&&words()>40,false]
 ];
 
 function update(){
@@ -365,16 +380,21 @@ function update(){
   $("count").textContent=w; $("count").classList.toggle("over",over);
   const f=$("fill"); f.style.width=Math.min(100,(w/150)*100)+"%"; f.classList.toggle("over",over);
 
-  const cl=$("checklist"); cl.innerHTML=""; let allOk=true;
-  CHECKS.forEach(([label,fn])=>{
+  const cl=$("checklist"); cl.innerHTML=""; let blockersOk=true;
+  CHECKS.forEach(([label,fn,blocks])=>{
     let ok=false; try{ok=fn()}catch(e){ok=false}
-    if(!ok) allOk=false;
+    if(!ok && blocks) blockersOk=false;
     const d=document.createElement("div");
-    d.className="ck "+(ok?"ok":"bad");
-    d.innerHTML='<span class="mk">'+(ok?"✓":"✗")+"</span><span>"+label+"</span>";
+    d.className="ck "+(ok?"ok":(blocks?"bad":"soft"));
+    d.innerHTML='<span class="mk">'+(ok?"✓":(blocks?"✗":"·"))+"</span><span>"+label+"</span>";
     cl.appendChild(d);
   });
-  $("copy").disabled=!(allOk&&["ext","open","named","reach"].every(g));
+  $("copy").disabled=!(blockersOk&&["ext","open","named","reach"].every(g));
+
+  const bn=F.bar.value.trim()||"the thing you named", cn=F.cat.value.trim();
+  $("cathint").innerHTML = cn
+    ? 'Your prompt will say: <b>not “good for a '+cn+'” — as good as '+bn+'.</b>'
+    : "";
 
   const w2=WARN[F.mod.value], box=$("modwarn");
   if(w2){box.classList.remove("hide");box.innerHTML="<strong>"+w2[0]+"</strong>"+w2[1]}
