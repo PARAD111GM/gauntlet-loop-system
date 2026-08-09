@@ -189,10 +189,7 @@
     <div class="chips" id="barchips"></div>
     <label class="fl" for="bar">The thing to beat</label>
     <input type="text" id="bar" placeholder="Stripe's billing dashboard">
-    <p class="eg" style="border-left-color:var(--limit)">One more word here. AI marks its own homework generously — it'll decide your thing is <b>“great for a browser game”</b> and stop, because browser games are usually rough. Name that excuse and the prompt shuts the door on it.</p>
-    <label class="fl" for="cat">Name that excuse</label>
-    <input type="text" id="cat" placeholder="browser game">
-    <div class="hint" id="cathint"></div>
+    <p class="eg">That's it for this step. The prompt ends by putting your thing side by side with this one and forcing a pick — so “pretty good for its type” never comes up as an answer.</p>
     <div class="gates" id="gates">
       <label class="gate"><input type="checkbox" data-g="named"><span><b>It's one specific thing.</b> “Stripe's billing dashboard”, not “a nice dashboard”.</span></label>
       <label class="gate"><input type="checkbox" data-g="open"><span><b>The AI can actually see it.</b> Open it yourself right now. If it's behind a login the AI can't reach, it will invent an opinion instead of forming one — that's the most common way these runs go wrong.</span></label>
@@ -295,7 +292,7 @@ const VERBS = {
 };
 
 const $=id=>document.getElementById(id);
-const F={goal:$("goal"),axis:$("axis"),bar:$("bar"),cat:$("cat"),scope:$("scope"),mod:$("mod")};
+const F={goal:$("goal"),axis:$("axis"),bar:$("bar"),scope:$("scope"),mod:$("mod")};
 let chosenAxis=null;
 
 for(const k in MODS){const o=document.createElement("option");o.value=k;o.textContent=k;F.mod.appendChild(o)}
@@ -320,7 +317,7 @@ function renderChips(){
         const e=document.createElement("button");
         e.className="chip sub";e.type="button";e.textContent=name;
         e.setAttribute("aria-pressed",F.bar.value.trim()===name);
-        e.onclick=()=>{ F.bar.value=name; renderChips(); update(); F.cat.focus() };
+        e.onclick=()=>{ F.bar.value=name; renderChips(); update() };
         tray.appendChild(e);
       });
       c.appendChild(tray);
@@ -340,7 +337,7 @@ function detectVerb(){
 }
 
 function build(){
-  const g=F.goal.value.trim(), b=F.bar.value.trim(), c=F.cat.value.trim(),
+  const g=F.goal.value.trim(), b=F.bar.value.trim(),
         s=F.scope.value.trim(), p=MODS[F.mod.value];
   const slot=t=>'<span class="slot">'+t+'</span>';
   const led=/^(build|write|create|make|design|ship|teach|explain)\b/i.test(g);
@@ -350,8 +347,8 @@ function build(){
   const G=g? (led? g.charAt(0).toUpperCase()+g.slice(1)
               : "Build "+(art? g.charAt(0).toLowerCase()+g.slice(1) : g))
            : "Build "+slot("what you're building");
-  const B=b||slot("the thing to beat"), C=c||slot("category"), S=s||slot("the hard parts");
-  return G+", at the level of "+B+". Hold it to that, not to what's normal for a "+C+".\n\n"
+  const B=b||slot("the thing to beat"), S=s||slot("the hard parts");
+  return G+", at the level of "+B+".\n\n"
     +"It has to cover "+S+", including the states nobody screenshots.\n\n"
     +"Fan out subagents; let them split the work however they see fit. /loop on every piece.\n\n"
     +"Every piece is checked by a fresh subagent that never saw it built and has no stake in it. That critic "+p+" — the artifact itself, never a summary. Be a harsh critic.\n\n"
@@ -391,10 +388,6 @@ function update(){
   });
   $("copy").disabled=!(blockersOk&&["ext","open","named","reach"].every(g));
 
-  const bn=F.bar.value.trim()||"the thing you named", cn=F.cat.value.trim();
-  $("cathint").innerHTML = cn
-    ? 'So it gets judged against <b>'+bn+'</b> — <i>not</i> against other '+(/s$/i.test(cn)?cn:cn+'s')+', where it could look fine just by being better than average.'
-    : "";
 
   const w2=WARN[F.mod.value], box=$("modwarn");
   if(w2){box.classList.remove("hide");box.innerHTML="<strong>"+w2[0]+"</strong>"+w2[1]}
@@ -410,7 +403,7 @@ $("copy").onclick=async()=>{
 $("demo").onclick=()=>{
   F.goal.value="A third-person skateboarding game that runs in the browser";
   F.axis.value="whether the board feels right to control";
-  F.bar.value="Tony Hawk's Pro Skater"; F.cat.value="browser game";
+  F.bar.value="Tony Hawk's Pro Skater";
   F.scope.value="landing tricks, camera through a turn, falling and restarting";
   F.mod.value="A game or 3D scene"; chosenAxis="A game that feels good to control";
   document.querySelectorAll('[data-g]').forEach(x=>x.checked=true);

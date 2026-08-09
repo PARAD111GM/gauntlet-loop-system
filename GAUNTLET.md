@@ -102,10 +102,10 @@ into the prompt; it is the difference between a critic that checks and one that 
 
 ## STEP 4 — Emit
 
-Fill four slots. Keep it under 150 words. Add nothing else.
+Fill three slots. Add nothing else.
 
 ```
-Build {GOAL}, at the level of {BAR}. Hold it to that, not to what's normal for a {CATEGORY}.
+Build {GOAL}, at the level of {BAR}.
 
 It has to cover {THE 3-5 HARD PARTS}, including the states nobody screenshots.
 
