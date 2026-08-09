@@ -105,7 +105,7 @@ into the prompt; it is the difference between a critic that checks and one that 
 Fill four slots. Keep it under 150 words. Add nothing else.
 
 ```
-Build {GOAL}, at the level of {BAR}. Not "good for a {CATEGORY}" — as good as that.
+Build {GOAL}, at the level of {BAR}. Hold it to that, not to what's normal for a {CATEGORY}.
 
 It has to cover {THE 3-5 HARD PARTS}, including the states nobody screenshots.
 

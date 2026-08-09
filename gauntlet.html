@@ -189,8 +189,8 @@
     <div class="chips" id="barchips"></div>
     <label class="fl" for="bar">The thing to beat</label>
     <input type="text" id="bar" placeholder="Stripe's billing dashboard">
-    <p class="eg" style="border-left-color:var(--limit)">One more word and we're done here. AI grades itself on a curve — left alone it'll decide your thing is <b>“really good for a browser game”</b> and stop. Naming the category out loud is what takes that excuse away.</p>
-    <label class="fl" for="cat">What kind of thing is it?</label>
+    <p class="eg" style="border-left-color:var(--limit)">One more word here. AI marks its own homework generously — it'll decide your thing is <b>“great for a browser game”</b> and stop, because browser games are usually rough. Name that excuse and the prompt shuts the door on it.</p>
+    <label class="fl" for="cat">Name that excuse</label>
     <input type="text" id="cat" placeholder="browser game">
     <div class="hint" id="cathint"></div>
     <div class="gates" id="gates">
@@ -351,7 +351,7 @@ function build(){
               : "Build "+(art? g.charAt(0).toLowerCase()+g.slice(1) : g))
            : "Build "+slot("what you're building");
   const B=b||slot("the thing to beat"), C=c||slot("category"), S=s||slot("the hard parts");
-  return G+", at the level of "+B+'. Not "good for a '+C+'" — as good as that.\n\n'
+  return G+", at the level of "+B+". Hold it to that, not to what's normal for a "+C+".\n\n"
     +"It has to cover "+S+", including the states nobody screenshots.\n\n"
     +"Fan out subagents; let them split the work however they see fit. /loop on every piece.\n\n"
     +"Every piece is checked by a fresh subagent that never saw it built and has no stake in it. That critic "+p+" — the artifact itself, never a summary. Be a harsh critic.\n\n"
@@ -393,7 +393,7 @@ function update(){
 
   const bn=F.bar.value.trim()||"the thing you named", cn=F.cat.value.trim();
   $("cathint").innerHTML = cn
-    ? 'Your prompt will say: <b>not “good for a '+cn+'” — as good as '+bn+'.</b>'
+    ? 'So it gets judged against <b>'+bn+'</b> — <i>not</i> against other '+(/s$/i.test(cn)?cn:cn+'s')+', where it could look fine just by being better than average.'
     : "";
 
   const w2=WARN[F.mod.value], box=$("modwarn");
